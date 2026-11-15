@@ -2,6 +2,7 @@ import {renderWelcome,renderRegions,mountIntro} from './intro.mjs';
 import {bindCharts,clearCharts,escape} from './charts.mjs';
 import {analyze,renderAnalysis,exportCsv} from './analysis.mjs';
 import {mountPublic} from './public-figures.mjs';
+import {metricGuide} from './metric-guide.mjs';
 import {monthlySeries} from './science.mjs';
 
 const main = document.querySelector('main');
@@ -25,6 +26,14 @@ const pending = new Set();
 let topologyCompute;
 let labModule;
 let previous;
+let conventionalCache;
+
+function conventionalModel() {
+  if (conventionalCache?.config !== state.config) {
+    conventionalCache = {config:state.config, model:analyze(state.data,state.config)};
+  }
+  return conventionalCache.model;
+}
 
 function read(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -70,7 +79,7 @@ function historyPage() {
 }
 
 function methodsPage({provenance:p,baseline,version,regions,minYear,maxYear}) {
-  return '<div class="shell workspace enter"><header class="page-head"><div><a class="back" href="#home">← Home</a><div class="eyebrow">About this investigation</div><h1 tabindex="-1">Methods &amp; sources</h1><p>Trace the evidence from statewide climate records to trend and topology results.</p></div></header><div class="methods-grid"><article class="panel"><div class="eyebrow">Historical record</div><h2>NOAA NCEI nClimDiv</h2><p>Monthly statewide estimates for '+escape(regions.map(r=>r.name).join(' and '))+' from '+minYear+'–'+maxYear+'. The underlying NOAA product uses interpolated surface station observations. This demo includes temperature and precipitation.</p><p>'+escape(version)+' · Supplied product date '+escape(p.publicationDate)+'.</p><a href="'+escape(p.metadataUrl)+'" target="_blank" rel="noreferrer">Product metadata ↗</a></article><article class="panel"><div class="eyebrow">Conventional inference</div><h2>Trend evidence</h2><p>We weight temperature by days per month, sum precipitation, and require all 12 months for an annual value. Monthly anomalies subtract the state’s '+baseline.join('–')+' calendar-month normal.</p><p>Annual OLS uses Newey–West HAC standard errors and approximate t inference. Theil–Sen supplies a robust effect estimate. The tie-aware Mann–Kendall result is descriptive and unadjusted for autocorrelation. Inference requires at least 20 complete years and 80% internal coverage.</p></article><article class="panel"><div class="eyebrow lab-text">Experimental analysis</div><h2>Topo-Signal</h2><p>Delay coordinates organize monthly anomalies as a point cloud. Rips persistent homology tracks the scales at which components merge and loops appear or fill. The lab plots H1 bottleneck distances to a frozen reference. The benchmark documents a separate detector calibration and its limits.</p><a href="https://ssrn.com/abstract=7615081" target="_blank" rel="noreferrer">Original research preprint ↗</a></article><article class="panel"><div class="eyebrow">Competition scope</div><h2>NASA Earth science data</h2><p>The NASA mission record covers a Nile Delta study box, separate from the NOAA statewide estimates for Arizona and California. <a href="#nasa">Open the NASA mission record ↗</a></p><a href="https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/" target="_blank" rel="noreferrer">Read the NASA Space Apps challenge ↗</a></article></div><section class="panel assistant-note"><div><h2>AI Climate Assistant</h2><p>Planned feature</p></div><button class="button ghost" disabled>Unavailable</button></section></div>';
+  return '<div class="shell workspace enter"><header class="page-head"><div><a class="back" href="#home">← Home</a><div class="eyebrow">About this investigation</div><h1 tabindex="-1">Methods &amp; sources</h1><p>Trace the evidence from statewide climate records to trend and topology results.</p></div></header><div class="methods-grid"><article class="panel"><div class="eyebrow">Historical record</div><h2>NOAA NCEI nClimDiv</h2><p>Monthly statewide estimates for '+escape(regions.map(r=>r.name).join(' and '))+' from '+minYear+'–'+maxYear+'. The underlying NOAA product uses interpolated surface station observations. This demo includes temperature and precipitation.</p><p>'+escape(version)+' · Supplied product date '+escape(p.publicationDate)+'.</p><a href="'+escape(p.metadataUrl)+'" target="_blank" rel="noreferrer">Product metadata ↗</a></article><article class="panel"><div class="eyebrow">Conventional inference</div><h2>Trend evidence</h2><p>We weight temperature by days per month, sum precipitation, and require all 12 months for an annual value. Monthly anomalies subtract the state’s '+baseline.join('–')+' calendar-month normal.</p><p>Annual OLS uses Newey–West HAC standard errors and approximate t inference. Theil–Sen supplies a robust effect estimate. The tie-aware Mann–Kendall result is descriptive and unadjusted for autocorrelation. Inference requires at least 20 complete years and 80% internal coverage.</p></article><article class="panel"><div class="eyebrow lab-text">Experimental analysis</div><h2>Topo-Signal</h2><p>Delay coordinates organize monthly anomalies as a point cloud. Rips persistent homology tracks the scales at which components merge and loops appear or fill. The lab plots H1 bottleneck distances to a frozen reference. The benchmark documents a separate detector calibration and its limits.</p><a href="https://ssrn.com/abstract=7615081" target="_blank" rel="noreferrer">Original research preprint ↗</a></article><article class="panel"><div class="eyebrow">Competition scope</div><h2>NASA Earth science data</h2><p>The NASA mission record covers a Nile Delta study box, separate from the NOAA statewide estimates for Arizona and California. <a href="#nasa">Open the NASA mission record ↗</a></p><a href="https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/" target="_blank" rel="noreferrer">Read the NASA Space Apps challenge ↗</a></article></div>'+metricGuide()+'<section class="panel assistant-note"><div><h2>AI Climate Assistant</h2><p>Planned feature</p></div><button class="button ghost" disabled>Unavailable</button></section></div>';
 }
 
 function route() {
@@ -182,14 +191,15 @@ function render() {
   if(page==='regions')main.innerHTML=renderRegions({regions:data.regions,coverage,selection:config.region,settings:regionSettings(data,config)});
   if(page==='history')main.innerHTML=historyPage();
   if(page==='methods')main.innerHTML=methodsPage(data);
-  if(page==='analysis')main.innerHTML=renderAnalysis(data,config,analyze(data,config));
+  if(page==='analysis')main.innerHTML=renderAnalysis(data,config,conventionalModel());
   if(page==='comparison')dropView=mountComparison(main,data,config,lab);
   if(page==='outlook')dropView=mountOutlook(main,data,config);
-  if(page==='proof'||page==='reconstruction'){
-    const study=config.region==='compare'?{...config,region:lab.region??data.regions[0].id}:config;
-    dropView=mountProofLab(main,data,study);
-  } else if(experimentPages.includes(page))dropView=mountExperiment(main,page,data,config);
-  if(page==='analysis'||page==='topology')main.insertAdjacentHTML('beforeend','<nav class="shell controls" aria-label="Climate experiment workspaces"><a class="button lab-button" href="#proof">Open Topo-Signal Proof Lab</a><a class="button ghost" href="#scenario">Try a scenario</a><a class="button ghost" href="#prediction">Investigate forecast evidence</a></nav>');
+  if(experimentPages.includes(page)) {
+    const study=config.region==='compare'?{...config,region:currentLabRegion()}:config;
+    dropView=page==='proof'||page==='reconstruction'
+      ? mountProofLab(main,data,study) : mountExperiment(main,page,data,study);
+  }
+  const experimentNav='<nav class="shell controls" aria-label="Climate experiment workspaces"><a class="button lab-button" href="#proof">Open Topo-Signal Proof Lab</a><a class="button ghost" href="#scenario">Try a scenario</a><a class="button ghost" href="#prediction">Investigate forecast evidence</a></nav>';
   if(page==='topology') {
     if(!labModule) {
       main.innerHTML='<p class="shell loading" role="status">Opening the topology lab…</p>';
@@ -201,7 +211,7 @@ function render() {
         if(state.page==='topology')main.innerHTML='<div class="shell empty" role="alert">Topology could not load. <a href="#analysis">Return to analysis</a>.</div>';
       });
     } else {
-      const model=analyze(data,config);
+      const model=conventionalModel();
       const item=model.records.find(record=>record.id===lab.region)??model.records[0];
       main.innerHTML=labModule.renderLab(data,config,model,lab,getTopology(item));
     }
@@ -211,6 +221,12 @@ function render() {
     main.innerHTML=research?.module
       ? (page==='benchmark'?research.module.renderBenchmark(data,research.bundle):research.module.renderNasa(research.bundle))
       : '<div class="shell empty" role="'+(research?.error?'alert':'status')+'">'+(research?.error?'Research records could not load. <a href="#analysis">Return to Public Explorer</a>.':'Loading documented research results…')+'</div>';
+  }
+  if(page==='analysis'||(page==='topology'&&labModule))main.insertAdjacentHTML('beforeend',experimentNav);
+  if(['analysis','topology','comparison'].includes(page)) {
+    const viewLink=(id,label)=>'<a href="#'+id+'"'+(page===id?' aria-current="page"':'')+'>'+label+'</a>';
+    const selection=escape(regionLabel(data,config.region))+' · '+escape(data.variables.find(v=>v.id===config.variable).label)+' · '+config.start+'–'+config.end;
+    main.insertAdjacentHTML('afterbegin','<div class="shell study-bar"><nav aria-label="Analysis modes">'+viewLink('analysis','Public Explorer')+viewLink('topology','Scientific Workspace')+viewLink('comparison','Compare methods')+'</nav><p>'+selection+'</p></div>');
   }
   main.insertAdjacentHTML('afterbegin',guidance(page));
   if(page==='home'||page==='regions')dropView=mountIntro(page);
@@ -311,7 +327,7 @@ main.addEventListener('click',event=>{
     render();
     (main.querySelector('[data-action="clear-history"]')??main.querySelector('h1'))?.focus();
   }
-  if(action==='export')exportCsv(state.data,state.config,analyze(state.data,state.config));
+  if(action==='export')exportCsv(state.data,state.config,conventionalModel());
 });
 
 window.addEventListener('hashchange',()=>{if(state.data)route();});

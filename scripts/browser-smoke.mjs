@@ -98,6 +98,28 @@ try {
   await file.delete();
   mark('CSV export contains 936 monthly observations, two fits, and provenance');
 
+  await page.getByRole('button',{name:'Unusual years'}).click();
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'anomaly-heading');
+  const figureDownload=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Download SVG'}).click();
+  const figureFile=await figureDownload;
+  const figure=await readFile(await figureFile.path(),'utf8');
+  assert.match(figure,/<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+  assert.match(figure,/NOAA dataset.*1985–2023/);
+  assert.match(figure,/California · monthly/);
+  await figureFile.delete();
+  const studyModes=page.getByRole('navigation',{name:'Analysis modes'});
+  const activeSelection=await page.locator('.study-bar p').innerText();
+  await studyModes.getByRole('link',{name:'Scientific Workspace'}).click();
+  await heading('Advanced Research Lab').waitFor();
+  assert.equal(await page.locator('.study-bar p').innerText(),activeSelection);
+  await studyModes.getByRole('link',{name:'Public Explorer'}).click();
+  await heading('Arizona & California').waitFor();
+  assert.equal(await field('method').inputValue(),'sen');
+  assert.equal(await field('anomaly').inputValue(),'true');
+  assert.equal(await field('resolution').inputValue(),'monthly');
+  mark('SVG includes data attribution and mode switch preserves all selections');
+
   await page.getByRole('link',{name:'Research Lab',exact:true}).click();
   await heading('Advanced Research Lab').waitFor();
   const clouds=page.locator('.lab-phase [data-phase-point]');
@@ -145,6 +167,8 @@ try {
   await barcode.click();
   assert.equal(await page.locator('[data-feature-select]').inputValue(),feature);
   assert.equal(await page.locator('[data-diagram-feature="'+feature+'"]').getAttribute('aria-pressed'),'true');
+  await page.getByText('Betti counts by distance',{exact:true}).click();
+  await page.getByRole('img',{name:'Betti counts across the Rips filtration'}).waitFor();
   const slider=page.locator('[data-rips-scale]');
   await slider.focus();
   await slider.press('End');
@@ -161,7 +185,7 @@ try {
   assert.equal(await page.locator('[data-inspector-date]').count(),6);
   await waitText(page.locator('[data-point-inspector]'),'m = 6');
   await page.getByRole('button',{name:'Save investigation'}).click();
-  mark('linked diagram and barcode, true Rips filtration, window selection, joint embedding and snapshot');
+  mark('linked diagram, barcode, Betti curves and true Rips filtration, window selection, joint embedding and snapshot');
 
   await page.getByRole('link',{name:'Early detection & benchmark',exact:false}).click();
   await heading('Why topology?').waitFor();
@@ -204,6 +228,24 @@ try {
       if(snapshot&&['home','regions','benchmark','nasa'].includes(route)) await screenshot(page,route+'-'+width);
     }
   }
+  await page.goto(url.href+'#scenario');
+  await heading('What-If Studio').waitFor();
+  await page.locator('[name=scenario-value]').fill('100');
+  await page.getByRole('button',{name:'Run scenario'}).click();
+  await heading('User-supplied scenario',2).waitFor();
+  await page.getByRole('img',{name:'Observed and hypothetical annual series'}).waitFor();
+  await page.getByRole('button',{name:'Reset',exact:true}).click();
+  assert.equal(await heading('User-supplied scenario',2).count(),0);
+  await page.goto(url.href+'#prediction');
+  await heading('Environmental Prediction Lab').waitFor();
+  await heading('Forecast unavailable',2).waitFor();
+  await page.goto(url.href+'#reconstruction');
+  await heading('Topo-Signal Proof Lab').waitFor();
+  await page.goto(url.href+'#analysis');
+  await page.evaluate(()=>{window.print=()=>{window.printedForQA=true;};});
+  await page.getByRole('button',{name:'Print report'}).click();
+  assert.equal(await page.evaluate(()=>window.printedForQA),true);
+  mark('scenario recalculation, forecast evidence, reconstruction alias and print action');
   assert.deepEqual(errors,[]);
   mark('six routes at 1440, 768 and 390 px with no horizontal overflow or browser errors');
   console.log('Browser smoke passed ('+checks.length+' checks) at '+url.href);

@@ -47,8 +47,9 @@ export function mountComparison(root,data,config,lab) {
     +(model.records.length>1?select('method-state','Compare region',model.records.map(r=>'<option value="'+r.id+'" '+(r.id===selected.id?'selected':'')+'>'+escape(r.name)+'</option>').join('')):'')
     +select('method-width','Window',choices([2,4,5,8,10],width,' years'))+select('method-stride','Stride',choices([6,12,24],stride,' months'))
     +select('method-digits','Display precision',choices([2,4,6],digits,' decimals'))
-    +'<label class="research-check"><input type="checkbox" data-method-topology checked> Show topology</label><label class="research-check"><input type="checkbox" data-method-interval checked> Show uncertainty</label></form><div data-comparison-results></div></div>';
+    +'<label class="research-check"><input type="checkbox" data-method-topology checked> Show topology</label><label class="research-check"><input type="checkbox" data-method-interval checked> Show uncertainty</label></form><p class="source-line" role="status" data-comparison-status></p><div data-comparison-results></div></div>';
   const target=root.querySelector('[data-comparison-results]');
+  const status=root.querySelector('[data-comparison-status]');
   function paint(){
     if(controller.signal.aborted)return;
     const index=windowIndex<0?(result?.windows.length??1)-1:windowIndex;
@@ -59,10 +60,11 @@ export function mountComparison(root,data,config,lab) {
     const opts={xDomain:domain,formatX:String,tipDigits:6};
     const values=selected.monthly.map(r=>({x:r.year+(r.month-1)/12,y:r.value}));
     const annual=config.resolution==='annual';
+    const observedUnit=annual?unit:variable.unit;
     const climate=plot([{label:annual?'Annual observations':'Monthly observations',color:green,
       points:annual?selected.annual.map(r=>({x:r.year,y:r.value})):values,gap:annual?1.01:.09},
       ...(annual?[{label:'OLS fit on annual values',color:amber,dash:true,points:t.fitted.map(r=>({x:r.year,y:r.value,lo:uncertainty?r.lo:null,hi:uncertainty?r.hi:null}))}]:[])],
-      {...opts,title:'Shared observations and conventional fit',yLabel:(config.anomaly?'Anomaly':'Value')+' ('+unit+')',tipUnit:unit});
+      {...opts,title:'Shared observations and conventional fit',yLabel:(config.anomaly?'Anomaly':'Value')+' ('+observedUnit+')',tipUnit:observedUnit});
     const rolling=result?.windows.map(entry=>{
       const samples=data.series[selected.id].filter(r=>r.date>=entry.start&&r.date<=entry.end);
       const monthly=monthlySeries(samples,variable.id,config.anomaly);
@@ -91,7 +93,7 @@ export function mountComparison(root,data,config,lab) {
         reference:result?.reference&&{start:result.reference.start,end:result.reference.end,features:result.reference.features},scales:result?.scales,
         selected:evidence.native,structuralP:null,assistedSlope:null,assistedTrendP:null,rolling}};
     const rollingView=show&&result?paper('Rolling window evidence',mask+plot([{label:'H1 distance to reference',color:purple,dots:true,gap:stride/12+.01,points:rolling.map(r=>({x:endX(r.date),y:r.h1}))}],{...opts,title:'H1 distance to reference',yLabel:'Standardized distance',zero:true})+
-      plot([{label:'Matched monthly anomaly OLS slopes',color:amber,dots:true,gap:stride/12+.01,points:rolling.map(r=>({x:endX(r.date),y:r.monthlySlope}))}],{...opts,title:'Descriptive anomaly slope on matched rolling windows',yLabel:escape(unit)+'/decade'}),
+      plot([{label:'Matched monthly anomaly OLS slopes',color:amber,dots:true,gap:stride/12+.01,points:rolling.map(r=>({x:endX(r.date),y:r.monthlySlope}))}],{...opts,title:'Descriptive anomaly slope on matched rolling windows',yLabel:variable.unit+'/decade'}),
       'The charts share dates but measure different quantities. Values are plotted at window end. Each month in a complete window contributes to its anomaly slope; persistence uses up to 30 trailing three-coordinate delay vectors. The first eligible score follows a complete window. Skipped windows: '+result.skipped+'. Overlapping windows reuse observations. Neither rolling series supplies a significance test.'):'';
     let geometry='';
     if(show&&w&&result.reference){
@@ -114,6 +116,7 @@ export function mountComparison(root,data,config,lab) {
   async function calculate(){
     const id=++seq;
     result=null;error=null;elapsed=null;
+    status.textContent=show?'Computing Topo-Signal for '+selected.name+'…':'';
     paint();
     if(!show)return;
     const started=performance.now();
@@ -127,6 +130,7 @@ export function mountComparison(root,data,config,lab) {
       if(id!==seq||controller.signal.aborted)return;
       error=reason.message;
     }
+    status.textContent=error?'Topology failed to calculate.':result?.reason??'Topology calculation complete.';
     paint();
   }
   root.querySelector('.research-method').addEventListener('change',event=>{

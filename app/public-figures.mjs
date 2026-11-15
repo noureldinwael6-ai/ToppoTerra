@@ -95,6 +95,13 @@ export function precipFigure(records, start, end, colors) {
 }
 
 export function mountPublic(root, onRange) {
+  for (const control of root.querySelectorAll('[data-section]')) {
+    control.addEventListener('click',()=>{
+      const heading=root.querySelector('#'+control.dataset.section);
+      heading.tabIndex=-1;
+      heading.focus();
+    });
+  }
   root.querySelector('[data-public-evidence]')?.addEventListener('click',()=>{
     const heading=root.querySelector('#uncertainty-heading');
     heading.tabIndex=-1;
@@ -105,6 +112,7 @@ export function mountPublic(root, onRange) {
   const chart=node && charts.get(node.dataset.plot);
   root.querySelector('[data-print-report]')?.addEventListener('click',()=>window.print());
   if (!chart) return;
+  root.querySelector('[data-download-chart]')?.addEventListener('click',()=>exportHistoricalChart(node,chart,chronology));
   const {width,pad,options}=chart;
   const [first,last]=options.xDomain;
   const start=Math.floor(first), end=Math.floor(last);
@@ -158,3 +166,38 @@ export function mountPublic(root, onRange) {
   });
 }
 
+
+function exportHistoricalChart(node, chart, chronology) {
+  const original = node.querySelector('svg');
+  const svg = original.cloneNode(true);
+  const ns = 'http://www.w3.org/2000/svg';
+  const {width,height}=chart;
+  const exportWidth=Math.max(width,760);
+  const exportHeight=height+55+18*chart.series.length;
+  svg.setAttribute('viewBox','0 -32 '+exportWidth+' '+exportHeight);
+  svg.setAttribute('width',exportWidth);
+  svg.setAttribute('height',exportHeight);
+  svg.querySelectorAll('.cursor,.range-brush').forEach(element=>element.remove());
+  const create = (tag,attrs,text) => {
+    const child=document.createElementNS(ns,tag);
+    for(const [key,value] of Object.entries(attrs))child.setAttribute(key,value);
+    if(text)child.textContent=text;
+    return child;
+  };
+  svg.prepend(create('rect',{x:0,y:-32,width:exportWidth,height:exportHeight,fill:'#101c23'}));
+  svg.prepend(create('title',{},chart.options.title));
+  svg.append(
+    create('style',{},'text{font: 11px sans-serif;fill:#d6e5e9}.plot-grid line{stroke:#48616a;stroke-width:1}.plot-grid .grid-zero{stroke:#a8bab9}'),
+    create('text',{x:chart.pad.l,y:-9},chart.options.title),
+    create('text',{x:chart.pad.l,y:height+10+18*chart.series.length},chronology.querySelector('.source-line').textContent.trim())
+  );
+  chart.series.forEach((item,index)=>{
+    svg.append(create('text',{x:chart.pad.l,y:height+5+18*index,style:'fill:'+item.color},item.label));
+  });
+  const href = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)],{type:'image/svg+xml;charset=utf-8'}));
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = 'ToppoTerra-historical-record.svg';
+  link.click();
+  setTimeout(()=>URL.revokeObjectURL(href),1000);
+}

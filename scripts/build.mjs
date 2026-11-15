@@ -3,7 +3,7 @@ import {access, copyFile, cp, mkdir} from 'node:fs/promises';
 const root = new URL('../', import.meta.url);
 const dist = new URL('dist/', root);
 const data = ['data/climate.json','data/research.json'];
-const expected = ['index.html','app/main.mjs','app/style.css','app/intro.css','app/public.css','app/lab.css','app/research.css','app/recovery.css','app/intro.mjs','app/science.mjs','app/topology.mjs','app/topology.worker.mjs','app/proof-lab.mjs','app/proof-worker.mjs','app/proof.css','app/comparison.mjs','app/outlook-model.mjs',...data];
+const expected = ['index.html','app/main.mjs','app/style.css','app/intro.css','app/public.css','app/lab.css','app/research.css','app/recovery.css','app/intro.mjs','app/diagnostics.mjs','app/metric-guide.mjs','app/science.mjs','app/topology.mjs','app/topology.worker.mjs','app/proof-lab.mjs','app/proof-worker.mjs','app/proof.css','app/comparison.mjs','app/outlook-model.mjs',...data];
 try {
   await Promise.all(expected.map(path=>access(new URL(path,root))));
 } catch (error) {

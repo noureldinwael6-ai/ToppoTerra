@@ -55,6 +55,11 @@ export function ripsEdges(points) {
   return edges;
 }
 
+export function bettiCounts(features, epsilon) {
+  const alive = features.filter(f => f.birth <= epsilon && (f.death === null || epsilon < f.death));
+  return {components:alive.filter(f => f.dimension === 0).length, loops:alive.filter(f => f.dimension === 1).length};
+}
+
 export function filtrationSummary(edges, features, epsilon, pointCount) {
   const active = edges.filter(edge => edge.distance <= epsilon);
   const connected = Array.from({length:pointCount}, () => []);
@@ -68,9 +73,7 @@ export function filtrationSummary(edges, features, epsilon, pointCount) {
       if (connected[i][k] && connected[j][k]) triangles++;
     }
   }
-  const alive = features.filter(f => f.birth <= epsilon && (f.death === null || epsilon < f.death));
-  return {active, triangles, components:alive.filter(f => f.dimension === 0).length,
-    loops:alive.filter(f => f.dimension === 1).length};
+  return {active, triangles, ...bettiCounts(features,epsilon)};
 }
 
 // Adapted from the team's legacy TopologicalViewer.tsx 3D camera rotation.

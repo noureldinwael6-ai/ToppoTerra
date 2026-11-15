@@ -1,4 +1,5 @@
-import {escape as html,number} from './charts.mjs';
+import {escape as html,number,plot} from './charts.mjs';
+import {bettiCounts} from './phase-space.mjs';
 
 const value = (n, decimals=3) => html(number(n,decimals));
 const finite = Number.isFinite;
@@ -9,6 +10,19 @@ const scaleText = decimals => n => value(n,decimals);
 
 function gridLines(values, y, width, left, right, format = scaleText(2)) {
   return values.map(v=>'<line class="lab-graph-grid" x1="'+left+'" x2="'+(width-right)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text text-anchor="end" x="'+(left-8)+'" y="'+(y(v)+4)+'">'+format(v)+'</text>').join('');
+}
+
+export function bettiFigure(features, scope) {
+  const endpoints = features.flatMap(f=>f.death===null?[f.birth]:[f.birth,f.death]);
+  const max = Math.max(...endpoints,0);
+  const limit = max>0 ? max*1.08 : 1;
+  const scales = [...new Set([0,...endpoints,limit])].sort((a,b)=>a-b);
+  const counts = scales.map(x=>({x,...bettiCounts(features,x)}));
+  const figure = plot([
+    {label:'H0 components',color:'#a9ebca',step:true,points:counts.map(p=>({x:p.x,y:p.components}))},
+    {label:'H1 loops',color:'#c8b3fa',step:true,points:counts.map(p=>({x:p.x,y:p.loops}))}
+  ],{title:'Betti counts across the Rips filtration',xLabel:'Distance ε (standardized units)',yLabel:'Active features',xTicks:[0,limit/4,limit/2,3*limit/4,limit],formatX:scaleText(2),zero:true,discreteY:true});
+  return '<details class="panel evidence"><summary>Betti counts by distance</summary><p>Each step counts live intervals from the selected barcode. An interval contributes from its birth through scales below its death. One connected component persists permanently. Narrow peaks can represent loops that fill shortly after appearing.</p>'+figure+'<p class="source-line">'+scope+'</p></details>';
 }
 
 export function lagGraph(values) {

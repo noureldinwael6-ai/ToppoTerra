@@ -35,7 +35,8 @@ try {
   assert.equal(await page.locator('[data-proof-benchmark] tbody tr').count(),5);
   for(const width of [1440,768,390]){
     await page.setViewportSize({width,height:950});
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))));
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Proof Lab viewport '+width+' px');
     if(process.env.QA_SCREENSHOTS){
       await mkdir(process.env.QA_SCREENSHOTS,{recursive:true});
       await page.screenshot({path:process.env.QA_SCREENSHOTS+'/proof-'+width+'.jpg',fullPage:true});

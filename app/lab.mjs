@@ -1,7 +1,7 @@
 import {colors} from './analysis.mjs';
 import {escape as html,number} from './charts.mjs';
 import {climateLagCorrelations,filtrationSummary,mountPhaseSpace,pointProvenance,ripsEdges,shiftMonth} from './phase-space.mjs';
-import {compareH1,comparisonShape,featureDescription,lagGraph,overviewGraph,persistenceViews,sourceGraph,windowGraph} from './lab-figures.mjs';
+import {bettiFigure,compareH1,comparisonShape,featureDescription,lagGraph,overviewGraph,persistenceViews,sourceGraph,windowGraph} from './lab-figures.mjs';
 
 const year = date => Number(date.slice(0,4));
 const period = window => window.start.slice(0,7)+' to '+window.end.slice(0,7);
@@ -81,6 +81,7 @@ export function renderLab(data, config, model, lab, result) {
     view = renderPointGeometry(selected,result,variable,item,variables)
       +renderSource(selected,data.series[item.id],variables,result)
       +persistenceViews(selected.features,Math.max(0,feature),scope)
+      +bettiFigure(selected.features,scope)
       +'<section class="panel lab-detail"><div class="lab-section-head"><div><div class="eyebrow lab-text">Windowed geometry</div><h2>Structural change over time</h2></div><p>Choose a window on either score plot to update the point cloud, source observations, and persistence views. Each window uses '+result.windowSize+' complete months, with a '+result.step+'-month stride. Overlapping windows share observations.</p></div><div class="score-grid"><div><h3>'+referenceId+'</h3>'+windowGraph(windows,index,true,config,result.step)+'</div><div><h3>Adjacent windows</h3>'+windowGraph(windows,index,false,config,result.step)+'</div></div><div class="climate-window-context">'+overviewGraph(data.series[item.id].filter(row=>row.year>=config.start&&row.year<=config.end),variable,config,selected)+'</div><p class="source-line">'+scope+' · fixed scale '+data.baseline.join('–')+' · retrospective chronology</p></section>'
       +(reference?'<section class="panel lab-detail"><div class="lab-section-head"><div><div class="eyebrow lab-text">Same axes and scale</div><h2>Reference and selected geometry</h2></div><p>These XY projections share the same bounds. The exact H1 distance uses the full embedding.</p></div><div class="compare-shapes"><figure>'+comparisonShape(reference,bounds,axes)+'<figcaption>Reference '+period(reference)+'</figcaption></figure><strong>'+score+'<small>H1 distance</small></strong><figure>'+comparisonShape(selected,bounds,axes)+'<figcaption>Selected '+period(selected)+'</figcaption></figure></div>'+compareH1(reference,selected)+'<p class="source-line">'+scope+'</p></section>':'')+reading;
   }

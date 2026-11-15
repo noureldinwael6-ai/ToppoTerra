@@ -22,9 +22,10 @@ export function renderWelcome({ coverage } = {}) {
         <h1 id="welcome-title">Earth, over <em>time.</em></h1>
         <p class="intro-lede">Reveal how temperature and precipitation changed across Arizona and California, using decades of climate observations.</p><p class="intro-proof">Test whether the shape of climate data helps recover missing observations and understand change. <a href="#proof">See what topology changes ↗</a></p>
         <div class="intro-actions">
-          <a class="intro-primary" href="#regions">Start investigation ${arrow}</a>
+          <a class="intro-primary" href="#regions">Start analysis ${arrow}</a>
           <a class="intro-history" href="#history"><span aria-hidden="true">↶</span> Search history</a>
           <button class="intro-demo" type="button" data-action="guided-start">Try the guided demo <span aria-hidden="true">→</span></button>
+          <a class="intro-history" href="#methods">About ToppoTerra ${arrow}</a>
         </div>
       </div>
       <figure class="intro-orbit">
@@ -119,8 +120,8 @@ export function renderRegions({ regions = [], coverage, selection, settings = ''
         ${years ? `<p class="region-coverage">Monthly records <strong>${years}</strong></p>` : ''}
         ${settings}
         <div class="mode-choices" aria-label="Choose an exploration mode">
-          <button type="button" class="mode-choice mode-public" data-action="analyze"${modes.length ? '' : ' disabled'}><span><strong>Public Explorer</strong><small>Understand the changes</small></span>${arrow}</button>
-          <button type="button" class="mode-choice mode-advanced" data-action="advanced"${modes.length ? '' : ' disabled'}><span><strong>Advanced Research Lab</strong><small>Investigate the topology</small></span>${arrow}</button>
+          <button type="button" class="mode-choice mode-public" data-action="analyze"${modes.length ? '' : ' disabled'}><span><strong>Public Explorer</strong><small>Run analysis and read the findings</small></span>${arrow}</button>
+          <button type="button" class="mode-choice mode-advanced" data-action="advanced"${modes.length ? '' : ' disabled'}><span><strong>Advanced Research Lab</strong><small>Scientific Workspace</small></span>${arrow}</button>
         </div>
       </div>
     </div>

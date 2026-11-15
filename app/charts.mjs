@@ -37,6 +37,7 @@ export function plot(series, options) {
   const height = options.height ?? (width < 500 ? 265 : 320);
   const pad = {l: width < 500 ? 51 : 66,r: 22,t: 35,b: 52};
   const yDomain = niceDomain(valid.flatMap(point => [point.y, point.lo, point.hi].filter(Number.isFinite)),options.zero,5);
+  if (options.discreteY) yDomain.ticks = yDomain.ticks.filter(Number.isInteger);
   const pointsX = valid.map(point => point.x);
   const minX = options.xDomain?.[0] ?? Math.min(...pointsX);
   const maxX = options.xDomain?.[1] ?? Math.max(...pointsX);
@@ -59,8 +60,9 @@ export function plot(series, options) {
     const band = bands.filter(group => group.length > 1).map(group => '<polygon points="'+group.map(p => sx(p.x)+','+sy(p.hi)).concat([...group].reverse().map(p => sx(p.x)+','+sy(p.lo))).join(' ')+'" fill="'+color+'" opacity=".15"/>').join('');
     if (options.scatter) return item.points.filter(p=>Number.isFinite(p.y)).map(p=>'<circle cx="'+sx(p.x)+'" cy="'+sy(p.y)+'" r="4" fill="'+color+'" fill-opacity=".72"><title>'+escape(p.label ?? item.label)+', '+number(p.x)+', '+number(p.y)+'</title></circle>').join('');
     const whiskers=item.whiskers?bounded.map(p=>'<path d="M'+sx(p.x)+','+sy(p.lo)+'V'+sy(p.hi)+' M'+(sx(p.x)-4)+','+sy(p.lo)+'h8 M'+(sx(p.x)-4)+','+sy(p.hi)+'h8" stroke="'+color+'" opacity=".75"/>').join(''):'';
+    const linePoints = item.step ? item.points.flatMap((point,i)=>i ? [{x:point.x,y:item.points[i-1].y},point] : [point]) : item.points;
     const markers = item.dots ? item.points.filter(p=>Number.isFinite(p.y)).map(p=>'<circle cx="'+sx(p.x)+'" cy="'+sy(p.y)+'" r="2.5" fill="'+color+'"/>').join('') : '';
-    return band + whiskers + '<path d="'+lines(item.points,sx,sy,item.gap ?? Infinity)+'" fill="none" stroke="'+color+'" stroke-width="'+(item.dash ? 1.7 : 2.1)+'" '+(item.dash?'stroke-dasharray="5 4"':'')+' vector-effect="non-scaling-stroke"/>'+markers;
+    return band + whiskers + '<path d="'+lines(linePoints,sx,sy,item.gap ?? Infinity)+'" fill="none" stroke="'+color+'" stroke-width="'+(item.dash ? 1.7 : 2.1)+'" '+(item.dash?'stroke-dasharray="5 4"':'')+' vector-effect="non-scaling-stroke"/>'+markers;
   }).join('');
   const diagonal = options.diagonal ? '<line x1="'+sx(Math.max(minX,yDomain.low))+'" x2="'+sx(Math.min(maxX,yDomain.high))+'" y1="'+sy(Math.max(minX,yDomain.low))+'" y2="'+sy(Math.min(maxX,yDomain.high))+'" stroke="#a8bab9" opacity=".6" stroke-dasharray="4 5"/>' : '';
   const boundary=Number.isFinite(options.boundary)?'<line x1="'+sx(options.boundary)+'" x2="'+sx(options.boundary)+'" y1="'+pad.t+'" y2="'+(height-pad.b)+'" stroke="#9db3b8" stroke-dasharray="3 4"><title>Observed / projected boundary</title></line>':'';

@@ -196,7 +196,7 @@ export function fitTrend(series, method = 'ols') {
   const missingYears = span - n;
   const result = {
     method, n, start, end, missingYears, coverage: span ? n / span : 0,
-    slope: null, rate: null, change: null, ci: null, p: null, mk: null,
+    slope: null, rate: null, change: null, ci: null, p: null, tStatistic: null, mk: null,
     olsRate: null, sen: null, senRate: null, fitted: [], lag: null, sensitivity: [],
     residualLag1: null, mean: null, min: null, max: null, observedChange: null,
     status: insufficient,
@@ -240,7 +240,8 @@ export function fitTrend(series, method = 'ols') {
   const degrees = n - 2;
   const critical = criticalT(degrees);
   const standardError = Math.sqrt(covariance.slope);
-  const p = tTwoSided(ols / standardError, degrees);
+  const tStatistic = ols / standardError;
+  const p = tTwoSided(tStatistic, degrees);
   const ci = [10 * (ols - critical * standardError), 10 * (ols + critical * standardError)];
   if (method !== 'sen') {
     for (const row of fit.fitted) {
@@ -264,6 +265,6 @@ export function fitTrend(series, method = 'ols') {
     const variance = hacCovariance(rows, sumXX, lag).slope;
     return {lag, p: variance > 0 ? tTwoSided(ols / Math.sqrt(variance), degrees) : null};
   });
-  return {...fit, p, ci, status, reason, lag: defaultLag, sensitivity};
+  return {...fit, p, tStatistic, ci, status, reason, lag: defaultLag, sensitivity};
 }
 

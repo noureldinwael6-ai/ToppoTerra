@@ -39,6 +39,7 @@ export function mountExperiment(root,page,data,config){
     const step=event.target.closest('[data-step]')?.dataset.step;
     if(!step)return;
     event.preventDefault();
+    const current=++version;
     try{
       if(step==='reset'){reset();return;}
       if(step==='mask'){
@@ -60,15 +61,14 @@ export function mountExperiment(root,page,data,config){
       const trend=series=>fitTrend(annualSeries(series.filter(r=>r.year>=config.start&&r.year<=config.end),key));
       const options={baseline:data.baseline,startYear:config.start,endYear:config.end,lagCount:3,direction:'past'};
       const series=items=>items.map(r=>({date:r.date,value:r[anomaly]}));
-      const current=++version;
       output.textContent='Computing persistence…';
       const before=await runTopologyAsync(series(archive),null,options);
       const after=await runTopologyAsync(series(edited),null,{...options,referenceScales:before.scales});
       if(current!==version||!panel.isConnected)return;
       const a=trend(archive),b=trend(edited);
-      output.innerHTML='<h2>User-supplied scenario</h2><p>'+escape(original.date)+' · '+number(original[key])+' → '+number(value)+' '+escape(variable.unit)+'</p><p>Descriptive annual slope: '+number(a.rate)+' → '+number(b.rate)+' '+escape(variable.unit)+'/decade. Scenario forecast unavailable.</p>'+plot([{label:'Observed',points:annualSeries(rows,key).map(r=>({x:r.year,y:r.value}))},{label:'Hypothetical',color:'#c8b3fa',points:annualSeries(edited.filter(r=>r.year>=config.start&&r.year<=config.end),key).map(r=>({x:r.year,y:r.value}))}],{title:'Observed and hypothetical annual series',yLabel:variable.unit})+plot([before,after].map((model,i)=>({label:i?'Hypothetical':'Observed',color:i?'#c8b3fa':'#a9ebca',points:model.windows.map(w=>({x:Number(w.end.slice(0,4)),y:w.maxH1}))})),{title:'Longest finite H1 feature by window',yLabel:'Persistence lifetime'});
+      output.innerHTML='<h2>User-supplied scenario</h2><p>'+escape(original.date)+' · '+number(original[key])+' → '+number(value)+' '+escape(variable.unit)+'</p><p>Descriptive annual slope: '+number(a.rate)+' → '+number(b.rate)+' '+escape(variable.unit)+'/decade. Scenario forecast unavailable.</p>'+plot([{label:'Observed',points:annualSeries(rows,key).map(r=>({x:r.year,y:r.value}))},{label:'Hypothetical',color:'#c8b3fa',points:annualSeries(edited.filter(r=>r.year>=config.start&&r.year<=config.end),key).map(r=>({x:r.year,y:r.value}))}],{title:'Observed and hypothetical annual series',yLabel:variable.unit})+plot([before,after].map((model,i)=>({label:i?'Hypothetical':'Observed',color:i?'#c8b3fa':'#a9ebca',points:model.windows.map(w=>({x:Number(w.end.slice(0,4)),y:w.maxH1}))})),{title:'Longest finite H1 feature by window',yLabel:'Persistence lifetime (standardized units)'});
       bindCharts(output);
-    }catch(error){output.textContent=error.message;}
+    }catch(error){if(current===version&&panel.isConnected)output.textContent=error.message;}
   });
   return ()=>{version++;};
 }

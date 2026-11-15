@@ -25,18 +25,20 @@ Open the URL printed in the terminal. The launcher tries `http://127.0.0.1:4173/
 ## Follow the demo
 
 1. Choose **Try the guided demo** or **Start investigation** on the Earth view.
-2. Select a state or compare both. Pick a variable and period, then enter **Public Explorer** for the historical series, rate, uncertainty, seasonal patterns and coverage.
-3. Open **Research Lab**. Orbit the phase space, inspect a point, and match its coordinates to the dated source observations. Select a persistence feature or move the filtration slider.
+2. Select a state or compare both. Pick a variable and period, then enter **Public Explorer** for the historical series, rate, uncertainty, unusual years, seasonal patterns and coverage.
+3. Switch to **Scientific Workspace** to retain the same study and open the Research Lab. Orbit the phase space, inspect a point, and match its coordinates to the dated source observations. Select a persistence feature or move the filtration slider.
 4. Choose **Early detection & benchmark** for the historical replay, simulated controls and algorithm costs. Select **Save investigation** in the Lab to preserve its configuration. Public sessions are recorded as explored.
-5. Use **Export CSV** or **Print report** in Public Explorer. Open **Explore NASA mission context** to see a separate sourced satellite record for the Nile Delta.
+5. Use **Export CSV**, **Download SVG**, or **Print report** in Public Explorer. Open **Explore NASA mission context** to see a separate sourced satellite record for the Nile Delta.
 
-## Build, verify and reconstruct
+## Build, verify and deploy
 
 ```sh
 npm test
 npm run build
 npm run preview
 ```
+
+See [deployment](DEPLOYMENT.md) for Vercel, Cloudflare Pages, and the Git bundle. See [feature inventory](FEATURE_INVENTORY.md) and [production validation](docs/PRODUCTION_VALIDATION.md) for coverage and measured limits.
 
 The static files are in `dist/`. Host the entire directory via HTTP. The project uses relative asset URLs and hash navigation. Use `npm run preview -- --port 4181` to choose a specific preview port. Full browser QA lives in `scripts/browser-smoke.mjs` and needs Playwright and Chromium as described in [QA report](docs/QA_REPORT.md).
 
