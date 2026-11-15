@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#091217">
+  <meta name="description" content="ToppoTerra explores historical climate trends and the changing shape of climate variability.">
+  <title>ToppoTerra · Earth System Trend Detective</title>
+  <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./app/style.css">
+  <link rel="stylesheet" href="./app/intro.css">
+  <link rel="stylesheet" href="./app/public.css">
+  <link rel="stylesheet" href="./app/lab.css">
+  <link rel="stylesheet" href="./app/research.css">
+  <link rel="stylesheet" href="./app/recovery.css">
+  <link rel="stylesheet" href="./app/proof.css">
+</head>
+<body>
+  <a href="#main" class="skip">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" tabindex="-1" aria-busy="true"><p class="shell loading">Loading climate records…</p></main>
+  <footer id="site-footer"></footer>
+  <noscript>Enable JavaScript to explore the bundled climate records.</noscript>
+  <script>
+    if (location.protocol === 'file:') {
+      const main = document.getElementById('main');
+      main.removeAttribute('aria-busy');
+      main.innerHTML = '<div class="shell startup-note"><h1>Start ToppoTerra locally</h1><p>Run <code>npm start</code> from the ToppoTerra Codex folder. Open the localhost address printed in your terminal.</p><p>On Windows, double-click <code>Start ToppoTerra.cmd</code> in the project folder.</p></div>';
+    } else {
+      import('./app/main.mjs').catch(error => {
+        console.error(error);
+        const main = document.getElementById('main');
+        main.removeAttribute('aria-busy');
+        main.innerHTML = '<div class="shell startup-note" role="alert"><h1>ToppoTerra could not open</h1><p>Check that the full project or web build is being served. Run <code>npm start</code> and open the address printed in your terminal.</p></div>';
+      });
+    }
+  </script>
+</body>
+</html>

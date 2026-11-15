@@ -1,0 +1,8 @@
+# Statistical provenance and duplicate readout
+
+Before this pass, app/lab.mjs imported Public Explorer's trendSummary from app/analysis.mjs and passed the same analyze() result displayed in Public Explorer. That summary reads trend.rate, trend.ci and trend.p, all from app/science.mjs's fitTrend(). OLS uses complete annual observations and a Newey–West HAC slope test. The repeated values were identical at full precision. tiny() also grouped small p-values below .001 in the summary, but rounding was not the root cause. The old Advanced window was 60 months, not 48. It computed real persistence independently and never computed a separate trend p-value.
+
+The Advanced Lab now links to a single, clearly labeled conventional readout. app/comparison.mjs dispatches the observed monthly anomalies separately to app/topology.mjs and exposes finite H1 diagram distance and the source coordinates. The conventional null is zero OLS slope. The structural stable-process null has no calibrated probability for interactive window choices. The benchmark's separately calibrated detector experiment has a different task. Independent topology-assisted slope and p-value fields are null. Changing precision or switching topology display never changes the conventional model.
+
+Raw JSON includes dataset version and supplied source fingerprint, geographic ID, analysis settings, monthly and annual support, missing counts, raw trend fields, topology parameters, reference, scales, lagged coordinates, diagrams, rolling estimates, and worker elapsed time. The displayed digits describe computations, not observation accuracy. Tests are in tests/comparison-outlook.test.mjs and scripts/comparison-smoke.mjs.
+

@@ -1,0 +1,20 @@
+.intro-proof{font-size:.88rem;max-width:37ch;margin-top:1rem}
+.proof-thesis{font:400 clamp(1.15rem,2.2vw,1.65rem)/1.4 var(--serif);color:var(--ink);max-width:62ch;margin-bottom:1.3rem}
+.proof .research-nav{margin-bottom:1.4rem}
+.proof-lead{display:flex;justify-content:space-between;align-items:start;gap:1rem}
+.proof-switch{display:flex;align-items:center;gap:.4rem;white-space:nowrap;min-height:44px;padding:.4rem .65rem;border:1px solid var(--border);border-radius:6px;color:var(--lab);font-size:.86rem}
+.proof-switch input{accent-color:var(--lab)}
+.proof .controls{margin-top:14px}
+.proof-status{margin-block:14px 8px;color:var(--ink)}
+.proof .research-table small{display:block;color:var(--muted)}
+.proof .table-scroll{margin-block:12px}
+.proof-scroll-note{display:none}
+@media(max-width:640px){.proof-scroll-note{display:block;font-size:.78rem}.proof .research-table.compact th,.proof .research-table.compact td{padding:.52rem .55rem}}
+.proof [data-proof-benchmark-status]{margin-block:8px}
+.proof-geometry{margin-top:20px;padding-top:15px;border-top:1px solid var(--border)}
+.proof-cloud{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;margin-top:12px}
+.proof-cloud svg{display:block;width:100%;border:1px solid var(--border);border-radius:6px;background:#0a151d}
+.proof-cloud aside{border-left:1px solid var(--border);padding:10px 15px}
+.proof-cloud aside p+ p{margin-top:8px}
+@media(max-width:700px){.proof-cloud{grid-template-columns:1fr}.proof-cloud aside{border-left:0;border-top:1px solid var(--border)}.proof-lead{flex-wrap:wrap}.proof-cloud .phase-controls{flex-wrap:wrap}}
+

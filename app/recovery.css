@@ -1,0 +1,40 @@
+:root { --paper-grid:#132127; }
+#site-header { position:relative; z-index:2; }
+.skip:not(:focus){clip-path:inset(50%);width:1px;height:1px;overflow:hidden;padding:0}
+.nav nav {gap:clamp(13px,2.2vw,30px)}
+.nav nav a{white-space:nowrap}
+.intro-demo{width:max-content;background:transparent;border:0;border-bottom:1px solid var(--border);color:var(--accent);padding:.25rem 0;margin-top:3px;font-weight:600;min-height:38px}
+.intro-demo:hover{border-color:var(--accent)}
+.intro-demo span{margin-left:.38em}
+.mode-choices{display:grid;gap:8px;margin-top:16px}
+.mode-choice{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:10px;padding:12px 15px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--ink);min-height:61px}
+.mode-choice strong,.mode-choice small{display:block}
+.mode-choice small{color:var(--muted);font-size:.8rem;font-weight:400}
+.mode-public{background:var(--accent);border-color:var(--accent);color:#132923}
+.mode-public small{color:#294639}
+.mode-public:hover{background:#d3f9e5}
+.mode-advanced{border-color:#62527d;color:var(--lab)}
+.mode-advanced:hover{background:#251e37}
+.region-settings{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,1fr));gap:8px;margin-top:15px}
+.region-settings label{font:.7rem var(--mono);color:var(--muted);display:grid;gap:5px;min-width:0}
+.guide{margin:15px auto 0;display:flex;justify-content:space-between;gap:16px;align-items:center;border:1px solid #4a6b5d;border-radius:7px;background:#132823;padding:12px 16px}
+.guide div:first-child{min-width:0}
+.guide small{display:block;margin-bottom:3px}
+.guide p{font-size:.86rem;color:#d4e9dc}
+.guide-actions{display:flex;flex-wrap:wrap;gap:7px;flex-shrink:0}
+.startup-note{padding-block:clamp(48px,12vh,140px)}
+.startup-note h1{font:400 clamp(2.6rem,7vw,5rem)/1 var(--serif);margin-bottom:16px}
+.startup-note p + p{margin-top:10px}
+@media(max-width:620px){
+  .nav{min-height:0;display:block;padding-top:8px}
+  .nav nav{justify-content:space-between;gap:8px}
+  .nav nav a{font-size:.77rem}
+  .nav nav a:last-child{padding-right:0}
+  .guide{flex-direction:column;align-items:flex-start}
+  .guide-actions{width:100%}
+}
+@media(max-width:390px){
+  .region-settings{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .region-settings label:first-child{grid-column:1/-1}
+}
+

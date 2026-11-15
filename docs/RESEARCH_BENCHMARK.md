@@ -1,0 +1,38 @@
+# Matched structural-change benchmark
+
+## Measured Arizona replay
+
+The first chronological experiment uses all available NOAA NCEI nClimDiv Arizona monthly statewide mean air temperatures from 1981–2025. This is a distinct experiment from the lab’s interactive topology. Its settings and observations are fixed and its outputs are precomputed. The app discloses the source, geography, replay interval, calibration, uncertainty and runtime.
+
+| Split | Role |
+|---|---|
+| 1981–2000 | Fit the twelve calendar means and sample standard deviation of monthly anomalies. Form six nonoverlapping January-anchored 36-month reference windows from 1981–1998. The final two training years still contribute to seasonal scaling and null blocks. |
+| 2001–2010 | Held-out embargo, unused in scoring, fitting or threshold calibration. |
+| 2011–2025 | 13 trailing 36-month windows ending each December 2013 through 2025. Every vector uses only observations already available at its window end. |
+
+Both detectors receive the same complete standardized windows. The conventional detector scores the maximum absolute training-standardized deviation across mean, log sample standard deviation and a lag-1 autocorrelation estimate. The dispersion floor of 0.05 avoids unstable standardized features. The topological detector computes finite Vietoris–Rips H1 on 30 true three-dimensional vectors [z(t), z(t−3), z(t−6)] per window. It takes the median bottleneck distance to the six frozen reference diagrams. The cost measurement uses the exact analysis code in separate fresh Node processes for both methods and excludes file I/O and null calibration. Peak RSS includes all process memory. Subsequent runs warm the runtime and repeat persistence without a diagram cache.
+
+Each detector is calibrated at the same nominal 10% chance of any alarm in a 15-year null path. Use 99 shared paths assembled from January-aligned 24-month moving blocks drawn from training anomalies only. Fit once, keep past segment order inside each block, and apply the full rolling score to every simulated path. Use the 90th order statistic among the 99 path maxima; a strict exceedance is an alarm. The empirical fitted-null calibration count is 9/99 for each detector. The test excludes in-place retuning. This null preserves measured dependence inside blocks while allowing discontinuities at block joins. Claims are conditional on that fitted approximation and selected detector settings. A high chance of “false alarms” under a different AR null is evidence against extrapolating calibration.
+
+The genuine Arizona replay produced **zero crossings for both detectors**. The peak conventional score was 0.830 times its threshold and the peak H1 score was 0.865 times its threshold. No independently labeled real structural onset is available, so detection delay, relative real-world detection quality and early-warning claims remain inconclusive. Trend significance remains the conventional annual OLS inference described in [Scientific methods](SCIENTIFIC_METHODS.md).
+
+## Controlled diagnostic paths
+
+Seven scenarios reuse 48 paired held-out simulations per scenario, independently seeded from calibration draws. Paths are 180 months long. The known simulated change begins after 72 complete months. For nulls, count paths with any crossing. For simulated changes, count paths crossing after onset, report their conditional median delay, and report pre-onset crossings separately. Detection delay is meaningful only along with the detection proportion and potential pre-onset false alarms. Use Wilson intervals for finite simulated-path proportions. These represent Monte Carlo uncertainty, not uncertainty under alternative physical or statistical models. Differences in rates are reported descriptively. Warm clusters reorder the same monthly anomalies into annual clusters while preserving each year's multiset. The independent paired rain–wetness lag control documents a synthetic relationship change and is separate from the benchmark's univariate detection metrics.
+
+The model-matched held-out null gave 6/48 crossing paths for each method. The AR(1) stress null gave 30/48 conventional and 31/48 H1 crossings. The conventional screen detected more abrupt mean, drift and variability changes. For clustered warmth, H1 crossed in 9/48 versus 6/48 for the conventional screen, with wide overlapping proportions and conditional delay 72 versus 66 months. Neither this nor the other fixtures establishes a real early-detection advantage. Daily heatwaves and soil-wetness ablations await suitable daily and spatially matched data.
+
+## NASA mission record
+
+The supplied legacy data archive contains actual NASA GPM IMERG, NASA POWER (MERRA-2), and SeaWiFS extracts for the Nile Delta. The NASA mission notebook uses the GPM product because its 120 consecutive monthly files share the same complete grid footprint. POWER is a point time series (31.2° E, 31.0° N, Jan 2002–Dec 2007, 72 monthly values per T2M and PRECTOTCORR, annual API keys excluded from counts). SeaWiFS has 121 valid regional months within 123 calendar months and just 287 finite raw cells out of 21,648, with varying ocean coverage and all-missing April 2001 and May 2003. Neither is currently displayed. No product has matched Arizona/California or daily Tmax/soil moisture coverage in the supplied extract.
+
+The existing NASA CSV includes 21,120 precipitation entries on a regular 0.1° grid, all finite, with 176 cells per month from January 1998–December 2007. Coordinates are centers from 30.55° to 31.55° N, 30.55° to 32.05° E. The cell footprints span 30.50°–31.60° N and 30.50°–32.10° E. Areas are proportional to cosine latitude on this equal-angular grid. Compute spatially weighted monthly precipitation depth, `sum(cell depth × weight) / sum(weight)`, then sum calendar-year months. The spatial chart shows each cell's average monthly depth over the full period. This is a bounded coastal land/water study, not an Egypt-wide or U.S. state statistic. The ten complete years support a descriptive fit only.
+
+The supplied CSV units header gives mm. USF IMaRS ERDDAP product metadata calls the variable monthly accumulated precipitation in mm, making it different from the native monthly HDF rate in mm/hour. Use the distributor's accumulation as delivered and do not multiply it by the days or hours per month. Exact upstream conversion steps and export version were absent from the archive. The live mirror links NASA IMERG V07 technical documentation and names NASA Goddard as the original source. The build credits both NASA and the ERDDAP distributor. The raw CSV SHA-256 is `66f3a19f388bc78201e4e12782096bb79614b538ac0340b4c22367911183ce75`. The legacy packaged ready series matches an equal-cell mean to 5e−9 mm; this rebuild computes its own area-weighted means. The tiny gzip archive in `data/source-records/` retains the exact original bytes for reproduction.
+
+[NASA GPM IMERG information](https://gpm.nasa.gov/data/imerg) · [USF accumulation metadata](https://erddap.marine.usf.edu/erddap/griddap/IMERG_monthly_global_precip.html) · [NASA native monthly rate and GIS accumulations](https://gpm.nasa.gov/node/3328)
+
+## Reproduce
+
+From the project root, run `node scripts/prepare-research.mjs` after preparing `data/climate.json`. Typical runtime is tens of seconds. Synthetic trials and science figures are deterministic. Runtime and memory metrics vary by run and machine. Browser views load the resulting `data/research.json` on demand. The climate input SHA-256 is included, and tests check it against the current NOAA bundle. Run `node --test tests/research.test.mjs` to independently verify the NASA aggregation, null rank, replay confinement and selected output regressions.
+

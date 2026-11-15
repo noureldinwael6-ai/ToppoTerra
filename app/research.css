@@ -1,0 +1,49 @@
+.research-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1.5rem;align-items:end;margin-bottom:2rem}
+.research-header .back{display:inline-block;color:var(--muted);font-size:.82rem;text-decoration:none;margin-bottom:17px}
+.research-header h1{font:400 clamp(3rem,6vw,6rem)/.98 var(--serif);letter-spacing:-.06em;margin:9px 0 13px}
+.research-header p:not(.eyebrow){max-width:55ch}
+.research-feature{padding:clamp(1rem,3vw,2rem);margin-bottom:1.15rem}
+.research-feature h2,.research-availability h2{font:400 clamp(1.9rem,4vw,3rem)/1.12 var(--serif);letter-spacing:-.05em;margin:.35rem 0 .6rem}
+.research-feature h2 small{font:400 .86rem var(--mono);letter-spacing:0;color:var(--muted)}
+.research-feature>p{max-width:82ch}
+.research-feature>p+p{margin-top:.8rem}
+.research-metadata{display:flex;flex-wrap:wrap;gap:.9rem 1.5rem;padding-block:1rem;margin-block:1rem;border-block:1px solid var(--border);font:.72rem var(--mono);color:var(--muted)}
+.research-metadata b{color:var(--ink);font-weight:500;margin-inline-start:.35rem;white-space:nowrap}
+.nasa-metadata{margin-top:0}
+.table-scroll{overflow-x:auto;margin-block:1rem 1.4rem}
+.research-table{border-collapse:collapse;width:100%;min-width:570px;font-size:.86rem;font-variant-numeric:tabular-nums}
+.research-table caption{color:var(--muted);text-align:left;margin-bottom:.6rem;font:.72rem/1.45 var(--mono)}
+.research-table tr>*{border-bottom:1px solid var(--border);padding:.62rem .58rem;text-align:left}
+.research-table th{font-weight:600}
+.research-table thead th{font-size:.78rem;color:var(--muted);font-weight:500}
+.research-table tbody td:first-of-type{color:var(--warm)}
+.research-table:not(.compact) tbody td:nth-of-type(2),.research-table.compact tbody td:nth-of-type(3){color:var(--lab)}
+.research-table.compact tbody td:first-of-type{color:var(--muted)}
+.research-table.compact tbody td:nth-of-type(2){color:var(--warm)}
+.research-table .benchmark-range,.research-table small{color:var(--muted);font-size:.74rem}
+.research-table small{display:block;white-space:nowrap}
+.research-availability{margin-top:1rem}
+.research-availability .panel{padding:1rem 1.35rem}
+.research-availability h2{font-size:1.65rem}
+.research-availability a{display:inline-block;margin-top:.8rem}
+.nasa-grid{margin-top:.85rem;color:var(--muted)}
+.nasa-grid svg{width:100%;display:block}
+.nasa-grid figcaption{display:flex;align-items:center;justify-content:flex-end;gap:8px;font:.68rem var(--mono);margin-top:-.4rem}
+.nasa-grid-labels{font:12px var(--mono)}
+.nasa-legend{width:min(25%,110px);height:.4rem;border-radius:4px;background:linear-gradient(90deg,hsl(181 47% 20%),hsl(149 47% 73%))}
+@media(max-width:950px){
+  .research-header{grid-template-columns:1fr;gap:1rem}
+}
+@media(max-width:620px){
+  .research-table tr>*{padding:.56rem .44rem}
+  .research-metadata{gap:.65rem 1rem}
+}
+
+.research-note{border-inline-start:2px solid var(--lab);padding-inline-start:.85rem;margin-block:.2rem 1rem}.research-note strong{color:var(--ink)}
+.research-trace{max-height:22rem;overflow:auto;padding:1rem;background:var(--bg);font:.75rem var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.research-method .answer h2{font:400 clamp(1.4rem,2.6vw,2rem) var(--serif)}
+.research-method .answer p+p{margin-top:.4rem}
+.research-method .comparison-controls .research-check{display:flex;align-items:center;padding-block:.5rem}
+.research-method .research-check input{accent-color:var(--lab)}
+.research-method .figure-panel label>select{max-width:20rem;margin:.5rem}
+.research-method .source-line{margin-bottom:1rem}

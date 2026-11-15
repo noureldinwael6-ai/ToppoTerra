@@ -1,0 +1,213 @@
+import assert from 'node:assert/strict';
+import {readFile,mkdir} from 'node:fs/promises';
+import {pathToFileURL} from 'node:url';
+import {resolve} from 'node:path';
+
+const modulePath=process.env.PLAYWRIGHT_MODULE;
+const playwright=await import(modulePath?pathToFileURL(resolve(modulePath)).href:'playwright');
+const chromium=playwright.chromium??playwright.default.chromium;
+const url=new URL(process.env.TEST_URL??'http://127.0.0.1:4173/');
+const executablePath=process.env.CHROMIUM_PATH||undefined;
+const data=JSON.parse(await readFile(new URL('../data/climate.json',import.meta.url),'utf8'));
+const browser=await chromium.launch({executablePath,args:['--disable-gpu']});
+const errors=[];
+const workers=[];
+const checks=[];
+const mark=text=>{checks.push(text);console.log('PASS '+text);};
+const direct=pathToFileURL(resolve('index.html')).href;
+const snapshot=process.env.QA_SCREENSHOTS;
+const screenshot=async(page,name)=>{
+  if(!snapshot)return;
+  await mkdir(snapshot,{recursive:true});
+  await page.screenshot({path:resolve(snapshot,name+'.jpg'),type:'jpeg',quality:83,fullPage:true,animations:'disabled'});
+};
+try {
+  const context=await browser.newContext({reducedMotion:'reduce',viewport:{width:1440,height:900},acceptDownloads:true});
+  const page=await context.newPage();
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('response',r=>{if(r.url().startsWith(url.origin) && r.status()>=400)errors.push(r.status()+' '+r.url());});
+  page.on('worker',worker=>workers.push(worker.url()));
+  const heading=(name,level=1)=>page.getByRole('heading',{name,level,exact:true});
+  const field=name=>page.locator('select[name="'+name+'"]');
+  const waitText=(locator,text)=>locator.filter({hasText:text}).waitFor({state:'visible'});
+  const answer=region=>page.locator('.answer').filter({has:page.locator('.series-name').getByText(region,{exact:true})});
+
+  await page.goto(direct);
+  await heading('Start ToppoTerra locally').waitFor();
+  mark('file launch shows recovery instructions');
+
+  await page.goto(url.href);
+  await heading('Earth, over time.').waitFor();
+  assert.equal(await page.locator('.intro-planet img').evaluate(img=>img.complete&&img.naturalWidth>0),true);
+  await page.getByRole('button',{name:'Try the guided demo'}).click();
+  await heading('Choose a study area.').waitFor();
+  await waitText(page.locator('.guide'),'1 of 4');
+  await page.getByRole('button',{name:'Explore freely'}).click();
+  await page.getByRole('button',{name:'Select Arizona on map'}).click();
+  const mode=page.getByRole('button',{name:/Public Explorer/});
+  await page.getByRole('button',{name:/Advanced Research Lab/}).waitFor();
+  await mode.click();
+  await heading('Arizona').waitFor();
+  await waitText(answer('Arizona'),'+0.32');
+  await waitText(answer('Arizona'),'Significant trend');
+  mark('Earth fallback, guided start, Census map and two modes');
+
+  await page.getByRole('link',{name:'Study areas',exact:false}).click();
+  await page.getByRole('button',{name:'Select California on map'}).click();
+  await mode.click();
+  await heading('California').waitFor();
+  await waitText(answer('California'),'+0.29');
+  await field('region').selectOption('compare');
+  await heading('Arizona & California').waitFor();
+  await heading('How certain is the trend?',2).waitFor();
+  await heading('Early and late years',2).waitFor();
+  await heading('Monthly coverage',2).waitFor();
+  await field('variable').selectOption('precip');
+  await waitText(answer('Arizona'),'−23.9');
+  await waitText(answer('California'),'No supported directional trend');
+  await heading('Wettest month in each complete year',2).waitFor();
+  await page.getByRole('button',{name:'Latest 10 years'}).click();
+  assert.equal(await field('start').inputValue(),'2016');
+  await waitText(answer('California'),'Insufficient data');
+  await page.getByRole('button',{name:'Reset range'}).click();
+  assert.equal(await field('start').inputValue(),'1981');
+  await field('start').selectOption('1985');
+  await field('end').selectOption('2023');
+  await page.getByText('Chart and method settings',{exact:true}).click();
+  await field('resolution').selectOption('monthly');
+  await field('anomaly').selectOption('true');
+  await field('method').selectOption('sen');
+  await waitText(answer('California'),'Theil–Sen fit');
+  const chart=page.locator('[data-public-chronology] .plot[tabindex]');
+  await chart.focus();
+  await chart.press('End');
+  await waitText(chart.locator('.plot-tip'),'Dec 2023');
+  mark('both state trends, paired views, range controls, monthly anomaly and chart keyboard');
+
+  const downloaded=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Export CSV'}).click();
+  const file=await downloaded;
+  assert.equal(file.suggestedFilename(),'ToppoTerra-compare-precip-1985-2023.csv');
+  const stream=await file.createReadStream();
+  let csv='';
+  for await(const chunk of stream)csv+=chunk.toString('utf8');
+  const rows=csv.trim().split(/\r?\n/);
+  assert.equal(rows.length,939);
+  assert.match(rows[0],/"dataset_version".*"ols_ci95_low_per_decade"/);
+  assert.ok(rows.some(row=>row.startsWith('"derived_monthly","California","2023-12-01","precipAnomaly"')));
+  await file.delete();
+  mark('CSV export contains 936 monthly observations, two fits, and provenance');
+
+  await page.getByRole('link',{name:'Research Lab',exact:true}).click();
+  await heading('Advanced Research Lab').waitFor();
+  const clouds=page.locator('.lab-phase [data-phase-point]');
+  await clouds.first().waitFor();
+  assert.equal(await clouds.count(),30);
+  assert.ok(workers.some(worker=>/topology[.-]worker\.mjs/.test(worker)));
+  const phase=page.locator('.lab-phase');
+  const initial=await clouds.first().getAttribute('cx');
+  await phase.focus();
+  await phase.press('Shift+ArrowRight');
+  await page.waitForFunction(initial=>document.querySelector('.lab-phase [data-phase-point]')?.getAttribute('cx')!==initial,initial);
+  const az=new Map(data.series.AZ.map(row=>[row.date,row]));
+  const dateAt=(date,index)=>{
+    const [year,month]=date.split('-').map(Number);
+    return new Date(Date.UTC(year,month-1-index*3,1)).toISOString().slice(0,10);
+  };
+  const baseline=data.series.AZ.filter(row=>row.year<=2010).map(row=>row.precipAnomaly);
+  const mean=baseline.reduce((s,v)=>s+v,0)/baseline.length;
+  const sd=Math.sqrt(baseline.reduce((s,v)=>s+(v-mean)**2,0)/(baseline.length-1));
+  for(const i of [0,11,23]){
+    const point=phase.locator('[data-phase-point="'+i+'"]');
+    await point.dispatchEvent('click');
+    const inspector=page.locator('[data-point-inspector]');
+    await waitText(inspector,'Point '+(i+1)+' / 30');
+    const anchor=await inspector.locator('[data-inspector-date]').first().getAttribute('data-inspector-date');
+    assert.equal(await inspector.locator('[data-inspector-date]').count(),3);
+    for(let lag=0;lag<3;lag++) {
+      const date=dateAt(anchor,lag);
+      const row=inspector.locator('[data-inspector-date="'+date+'"]');
+      assert.equal(Number(await row.locator('[data-observed-value]').getAttribute('data-observed-value')),az.get(date).precip);
+      assert.equal(Number(await row.locator('[data-anomaly-value]').getAttribute('data-anomaly-value')),az.get(date).precipAnomaly);
+      assert.ok(Math.abs(Number(await row.locator('[data-coordinate]').getAttribute('data-coordinate'))-(az.get(date).precipAnomaly-mean)/sd)<1e-12);
+      assert.equal(await page.locator('.source-dot.linked[data-date="'+date+'"]').count(),1);
+    }
+  }
+  const source=page.locator('.source-dot[data-source-pick]').first();
+  await source.dispatchEvent('click');
+  assert.notEqual(await page.locator('[data-phase-select]').inputValue(),'23');
+  mark('3D orbit and three exact raw/anomaly/coordinate mappings, including reverse source selection');
+  await page.locator('[data-phase-flat]').click();
+  assert.equal(await page.locator('[data-phase-flat]').getAttribute('aria-pressed'),'true');
+  await page.locator('[data-phase-flat]').click();
+  const barcode=page.locator('button.barcode-feature').first();
+  const feature=await barcode.getAttribute('data-feature');
+  await barcode.click();
+  assert.equal(await page.locator('[data-feature-select]').inputValue(),feature);
+  assert.equal(await page.locator('[data-diagram-feature="'+feature+'"]').getAttribute('aria-pressed'),'true');
+  const slider=page.locator('[data-rips-scale]');
+  await slider.focus();
+  await slider.press('End');
+  await waitText(page.locator('[data-rips-summary]'),'435 edges');
+  const selectWindow=field('lab-window');
+  const previous=await selectWindow.inputValue();
+  const windowIndex=previous==='0'?1:0;
+  await page.locator('.score-graph [data-topo-window="'+windowIndex+'"]').first().dispatchEvent('click');
+  assert.equal(await selectWindow.inputValue(),String(windowIndex));
+  await field('lab-region').selectOption('CA');
+  await field('lab-joint').selectOption('true');
+  await field('lab-delay').selectOption('6');
+  await clouds.first().waitFor();
+  assert.equal(await page.locator('[data-inspector-date]').count(),6);
+  await waitText(page.locator('[data-point-inspector]'),'m = 6');
+  await page.getByRole('button',{name:'Save investigation'}).click();
+  mark('linked diagram and barcode, true Rips filtration, window selection, joint embedding and snapshot');
+
+  await page.getByRole('link',{name:'Early detection & benchmark',exact:false}).click();
+  await heading('Why topology?').waitFor();
+  await heading('Performance on known changes',2).waitFor();
+  await heading('Cost for the same replay',2).waitFor();
+  await waitText(page.locator('.research'),'No independently dated regime change');
+  mark('historical detector replay, held-out controls, and measured compute comparison');
+
+  await page.getByRole('link',{name:'History',exact:true}).click();
+  await heading('Search history').waitFor();
+  await page.reload();
+  await heading('Search history').waitFor();
+  const labSaved=page.locator('.history-list li').filter({hasText:'Research Lab'});
+  assert.equal(await labSaved.count(),1);
+  await labSaved.getByRole('button',{name:'Reopen'}).click();
+  await heading('Advanced Research Lab').waitFor();
+  assert.equal(await field('lab-delay').inputValue(),'6');
+  assert.equal(await field('lab-joint').inputValue(),'true');
+  await page.getByRole('link',{name:'Public Explorer',exact:true}).first().click();
+  await heading('Arizona & California').waitFor();
+  assert.equal(await field('start').inputValue(),'1985');
+  assert.equal(await field('end').inputValue(),'2023');
+  await page.getByRole('link',{name:'Explore NASA mission context'}).click();
+  await heading('Nile Delta rainfall').waitFor();
+  await heading('Coverage by cell',2).waitFor();
+  assert.equal(await page.locator('.nasa-grid svg rect').count(),176);
+  await waitText(page.locator('.nasa-metadata'),'120');
+  mark('saved Lab parameters survive reload, shared Public settings restore, NASA grid loads separately');
+
+  for(const width of [1440,768,390]){
+    await page.setViewportSize({width,height:900});
+    for(const [route,name] of [['home','Earth, over time.'],['regions','Choose a study area.'],['analysis','Arizona & California'],['topology','Advanced Research Lab'],['benchmark','Why topology?'],['nasa','Nile Delta rainfall']]){
+      await page.goto(url.href+'#'+route);
+      await heading(name).waitFor();
+      if(route==='topology')await clouds.first().waitFor();
+      if(route==='benchmark')await heading('Cost for the same replay',2).waitFor();
+      if(route==='nasa')await heading('Coverage by cell',2).waitFor();
+      const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
+      assert.equal(overflow,false,route+' at '+width+' px');
+      if(snapshot&&['home','regions','benchmark','nasa'].includes(route)) await screenshot(page,route+'-'+width);
+    }
+  }
+  assert.deepEqual(errors,[]);
+  mark('six routes at 1440, 768 and 390 px with no horizontal overflow or browser errors');
+  console.log('Browser smoke passed ('+checks.length+' checks) at '+url.href);
+} finally {
+  await browser.close();
+}
+

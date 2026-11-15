@@ -1,0 +1,7 @@
+# Proof Lab protocol
+
+The Blindfold trial inherits the study variable, state and period. In two-state comparison, it uses the Research Lab's chosen state or defaults to Arizona. Mask one, three or six consecutive observed months. Ground truth stays separate from worker inputs. In prospective mode, each target uses only earlier observations, including when estimating calendar-month normals and scaling. Retrospective mode admits surrounding observations.
+
+Same-month climatology and adjacent-value interpolation or carry-forward are conventional comparators. Both analog arms rank the same measured same-calendar-month candidates, more than one year apart, on shared seasonally standardized surrounding observations. The geometric arm uses RMS context distance. The H1 arm uses the Euclidean combination of that distance and twice the bottleneck distance between exact Rips H1 diagrams of complete three-month vectors. The top five neighbors are weighted by inverse squared distance with a small floor, and at least three are required. The shape inspector shows the first target's context for the top-ranked candidate.
+
+The archive benchmark runs two sets of six seeded singleton masks, three- and six-month blocks, and the three upper extremes, using the later archive years for masked targets. MAE and RMSE refer only to supported estimates. The paired MAE difference matches dates exactly. This is a masked archive experiment with overlapping contexts, not independent deployment evidence or calibrated uncertainty.
