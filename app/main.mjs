@@ -2,6 +2,8 @@ import {renderWelcome,renderRegions,mountIntro} from './intro.mjs';
 import {bindCharts,clearCharts,escape} from './charts.mjs';
 import {analyze,renderAnalysis,exportCsv} from './analysis.mjs';
 import {mountPublic} from './public-figures.mjs';
+import {learningIllustrations,mountLearning} from './learn.mjs';
+import {publicTopologyStory} from './result-story.mjs';
 import {metricGuide} from './metric-guide.mjs';
 import {monthlySeries} from './science.mjs';
 
@@ -22,7 +24,7 @@ let researchRequest;
 let guide = false;
 const lagCount = 3;
 const direction = 'past';
-const pending = new Set();
+const pending = new Map();
 let topologyCompute;
 let labModule;
 let previous;
@@ -79,7 +81,7 @@ function historyPage() {
 }
 
 function methodsPage({provenance:p,baseline,version,regions,minYear,maxYear}) {
-  return '<div class="shell workspace enter"><header class="page-head"><div><a class="back" href="#home">← Home</a><div class="eyebrow">About this investigation</div><h1 tabindex="-1">Methods &amp; sources</h1><p>Trace the evidence from statewide climate records to trend and topology results.</p></div></header><div class="methods-grid"><article class="panel"><div class="eyebrow">Historical record</div><h2>NOAA NCEI nClimDiv</h2><p>Monthly statewide estimates for '+escape(regions.map(r=>r.name).join(' and '))+' from '+minYear+'–'+maxYear+'. The underlying NOAA product uses interpolated surface station observations. This demo includes temperature and precipitation.</p><p>'+escape(version)+' · Supplied product date '+escape(p.publicationDate)+'.</p><a href="'+escape(p.metadataUrl)+'" target="_blank" rel="noreferrer">Product metadata ↗</a></article><article class="panel"><div class="eyebrow">Conventional inference</div><h2>Trend evidence</h2><p>We weight temperature by days per month, sum precipitation, and require all 12 months for an annual value. Monthly anomalies subtract the state’s '+baseline.join('–')+' calendar-month normal.</p><p>Annual OLS uses Newey–West HAC standard errors and approximate t inference. Theil–Sen supplies a robust effect estimate. The tie-aware Mann–Kendall result is descriptive and unadjusted for autocorrelation. Inference requires at least 20 complete years and 80% internal coverage.</p></article><article class="panel"><div class="eyebrow lab-text">Experimental analysis</div><h2>Topo-Signal</h2><p>Delay coordinates organize monthly anomalies as a point cloud. Rips persistent homology tracks the scales at which components merge and loops appear or fill. The lab plots H1 bottleneck distances to a frozen reference. The benchmark documents a separate detector calibration and its limits.</p><a href="https://ssrn.com/abstract=7615081" target="_blank" rel="noreferrer">Original research preprint ↗</a></article><article class="panel"><div class="eyebrow">Competition scope</div><h2>NASA Earth science data</h2><p>The NASA mission record covers a Nile Delta study box, separate from the NOAA statewide estimates for Arizona and California. <a href="#nasa">Open the NASA mission record ↗</a></p><a href="https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/" target="_blank" rel="noreferrer">Read the NASA Space Apps challenge ↗</a></article></div>'+metricGuide()+'<section class="panel assistant-note"><div><h2>AI Climate Assistant</h2><p>Planned feature</p></div><button class="button ghost" disabled>Unavailable</button></section></div>';
+  return '<div class="shell workspace enter"><header class="page-head"><div><a class="back" href="#home">← Home</a><div class="eyebrow">About this investigation</div><h1 tabindex="-1">Methods &amp; sources</h1><p>Trace the evidence from statewide climate records to trend and topology results.</p></div></header><div class="methods-grid"><article class="panel"><div class="eyebrow">Historical record</div><h2>NOAA NCEI nClimDiv</h2><p>Monthly statewide estimates for '+escape(regions.map(r=>r.name).join(' and '))+' from '+minYear+'–'+maxYear+'. The underlying NOAA product uses interpolated surface station observations. This demo includes temperature and precipitation.</p><p>'+escape(version)+' · Supplied product date '+escape(p.publicationDate)+'.</p><a href="'+escape(p.metadataUrl)+'" target="_blank" rel="noreferrer">Product metadata ↗</a></article><article class="panel"><div class="eyebrow">Conventional inference</div><h2>Trend evidence</h2><p>We weight temperature by days per month, sum precipitation, and require all 12 months for an annual value. Monthly anomalies subtract the state’s '+baseline.join('–')+' calendar-month normal.</p><p>Annual OLS uses Newey–West HAC standard errors and approximate t inference. Theil–Sen supplies a robust effect estimate. The tie-aware Mann–Kendall result is descriptive and unadjusted for autocorrelation. Inference requires at least 20 complete years and 80% internal coverage.</p></article><article class="panel"><div class="eyebrow lab-text">Experimental analysis</div><h2>Topo-Signal</h2><p>Delay coordinates organize monthly anomalies as a point cloud. Rips persistent homology tracks the scales at which components merge and loops appear or fill. The lab plots H1 bottleneck distances to a frozen reference. The benchmark documents a separate detector calibration and its limits.</p><a href="https://ssrn.com/abstract=7615081" target="_blank" rel="noreferrer">Original research preprint ↗</a></article><article class="panel"><div class="eyebrow">Competition scope</div><h2>NASA Earth science data</h2><p>The NASA mission record covers a Nile Delta study box, separate from the NOAA statewide estimates for Arizona and California. <a href="#nasa">Open the NASA mission record ↗</a></p><a href="https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/" target="_blank" rel="noreferrer">Read the NASA Space Apps challenge ↗</a></article></div>'+metricGuide()+learningIllustrations()+'<section class="panel assistant-note"><div><h2>AI Climate Assistant</h2><p>Planned feature</p></div><button class="button ghost" disabled>Unavailable</button></section></div>';
 }
 
 function route() {
@@ -113,21 +115,22 @@ function getTopology(item) {
   const {data,config,lab}=state;
   const key=topologyKey(item);
   if (state.results.has(key)) return state.results.get(key);
-  if (pending.has(key)) return null;
-  pending.add(key);
+  if (pending.has(key)) return pending.get(key);
   const companion=data.variables.find(v=>v.id!==config.variable);
   const primarySeries=monthlySeries(data.series[item.id],config.variable,true);
   const companionSeries=lab.joint?monthlySeries(data.series[item.id],companion.id,true):null;
   const options={startYear:config.start,endYear:config.end,delay:lab.delay,baseline:data.baseline,lagCount,direction,windowSize:(lab.width??4)*12,step:lab.step??12};
   topologyCompute ??= import('./topology.mjs');
-  topologyCompute.then(module=>module.runTopologyAsync(primarySeries,companionSeries,options))
+  const task=topologyCompute.then(module=>module.runTopologyAsync(primarySeries,companionSeries,options))
     .catch(error=>({error:'Topology unavailable. '+error.message})).then(output=>{
       pending.delete(key);
       state.results.set(key,output);
       if(state.results.size>24)state.results.delete(state.results.keys().next().value);
       if(state.page==='topology' && key===topologyKey({id:currentLabRegion()}))render();
+      return output;
     });
-  return null;
+  pending.set(key,task);
+  return task;
 }
 
 function currentLabRegion() {
@@ -165,14 +168,15 @@ function updateRange({start,end}) {
 
 function guidance(page) {
   const steps={
-    regions:['1 of 4 · Define the investigation','The map shows the two statewide archives. Keep the full record and choose Public Explorer.','analysis','See the trend'],
-    analysis:['2 of 4 · Read the trend','The per-decade rate describes the fitted change. The interval shows its uncertainty.','topology','See the geometry'],
-    topology:['3 of 4 · Trace a point','Select a phase-space point to reveal the dated observations used in its coordinates.','benchmark','Compare the detectors'],
-    benchmark:['4 of 4 · Review the evidence','Compare the two detectors under the same replay rules, then inspect the limits on any added-value claim.','analysis','Return to Public Explorer']
+    regions:['1 of 5 · Set up a study','Choose a state on the map, then select a variable and period. Use a long record to explore a historical trend.','analysis','Read the results','[aria-label="Investigation settings"]','Show study controls'],
+    analysis:['2 of 5 · Read the evidence','Compare the first and last complete years with the fitted direction. Open the trend explanation for uncertainty and the p-value.','topology','See the geometry','#story-heading','Show the evidence'],
+    topology:['3 of 5 · Trace a point','Pick an anchor month and trace its three source dates. Move the distance slider to see components join and loops fill.','comparison','Compare the methods','.phase-detail','Show the geometry'],
+    comparison:['4 of 5 · Compare the windows','Find the full historical span and the shorter structural window. Use Matched-window view to compare the same months.','benchmark','Review validation','.comparison-controls','Show the comparison controls'],
+    benchmark:['5 of 5 · Read the limitations','Inspect the replay and synthetic controls. Compare the outcomes under the documented reference process.','analysis','Finish walkthrough','.research','Show the validation']
   };
   if(!guide || !steps[page])return '';
-  const [step,copy,next,label]=steps[page];
-  return '<section class="shell guide" aria-label="Guided investigation"><div><small class="eyebrow">'+step+'</small><p>'+copy+'</p></div><div class="guide-actions"><a class="button primary slim" href="#'+next+'">'+label+' →</a><button type="button" class="button ghost slim" data-action="exit-guide">Explore freely</button></div></section>';
+  const [step,copy,next,label,target,hint]=steps[page];
+  return '<section class="shell guide" aria-label="Guided investigation"><div><small class="eyebrow">'+step+'</small><p>'+copy+'</p></div><div class="guide-actions"><button type="button" class="button ghost slim" data-action="guide-locate" data-guide-target="'+escape(target)+'">'+hint+'</button><a class="button primary slim" href="#'+next+'"'+(page==='benchmark'?' data-action="guide-finish"':'')+'>'+label+' →</a><button type="button" class="button ghost slim" data-action="exit-guide">Explore freely</button></div></section>';
 }
 
 function render() {
@@ -213,7 +217,8 @@ function render() {
     } else {
       const model=conventionalModel();
       const item=model.records.find(record=>record.id===lab.region)??model.records[0];
-      main.innerHTML=labModule.renderLab(data,config,model,lab,getTopology(item));
+      const topology=getTopology(item);
+      main.innerHTML=labModule.renderLab(data,config,model,lab,topology instanceof Promise?null:topology);
     }
   }
   if(page==='benchmark'||page==='nasa') {
@@ -226,16 +231,29 @@ function render() {
   if(['analysis','topology','comparison'].includes(page)) {
     const viewLink=(id,label)=>'<a href="#'+id+'"'+(page===id?' aria-current="page"':'')+'>'+label+'</a>';
     const selection=escape(regionLabel(data,config.region))+' · '+escape(data.variables.find(v=>v.id===config.variable).label)+' · '+config.start+'–'+config.end;
-    main.insertAdjacentHTML('afterbegin','<div class="shell study-bar"><nav aria-label="Analysis modes">'+viewLink('analysis','Public Explorer')+viewLink('topology','Scientific Workspace')+viewLink('comparison','Compare methods')+'</nav><p>'+selection+'</p></div>');
+    main.insertAdjacentHTML('afterbegin','<div class="shell study-bar"><nav aria-label="Analysis modes">'+viewLink('analysis','Public Explorer')+viewLink('topology','Scientific Workspace')+viewLink('comparison','Compare methods')+'<button type="button" data-action="guide-revisit">Walkthrough</button></nav><p>'+selection+'</p></div>');
   }
   main.insertAdjacentHTML('afterbegin',guidance(page));
   if(page==='home'||page==='regions')dropView=mountIntro(page);
   if(page==='analysis'){
     dropView=mountPublic(main,updateRange);
+    const model=conventionalModel();
+    const channel=model.variable.label+(lab.joint?' and '+data.variables.find(v=>v.id!==config.variable).label:'');
+    for (const item of model.records) {
+      const container=main.querySelector('[data-story-topology="'+item.id+'"]');
+      const show=output=>{
+        if(!container.isConnected)return;
+        container.innerHTML=publicTopologyStory(output,channel);
+      };
+      const topology=getTopology(item);
+      if(topology instanceof Promise)topology.then(show);
+      else show(topology);
+    }
     if(optionsOpen)main.querySelector('.public-view-options').open=true;
   }
   if(page==='topology'&&labModule)dropView=labModule.mountLab(main);
   if((page==='benchmark'||page==='nasa')&&research?.module?.mountResearch)dropView=research.module.mountResearch(main);
+  mountLearning(main);
   bindCharts(main);
   if(changed && previous!==undefined){
     window.scrollTo(0,0);
@@ -291,7 +309,19 @@ main.addEventListener('click',event=>{
     save(configKey,state.config);
     navigate('regions');
   }
+  if(action==='guide-revisit') {
+    guide=true;
+    render();
+    main.querySelector('[data-action="guide-locate"]')?.focus();
+  }
+  if(action==='guide-locate') {
+    main.querySelector('.guide-spotlight')?.classList.remove('guide-spotlight');
+    const target=main.querySelector(button.dataset.guideTarget)??main.querySelector('h1');
+    if(target){target.classList.add('guide-spotlight');target.tabIndex=-1;target.focus();}
+  }
+  if(action==='guide-finish')guide=false;
   if(action==='exit-guide') {
+    main.querySelector('.guide-spotlight')?.classList.remove('guide-spotlight');
     guide=false;
     main.querySelector('.guide')?.remove();
     main.querySelector('h1')?.focus();

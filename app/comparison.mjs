@@ -2,6 +2,7 @@ import {analyze,filters} from './analysis.mjs';
 import {escape,plot,bindCharts} from './charts.mjs';
 import {runTopologyAsync} from './topology.mjs';
 import {monthlySeries} from './science.mjs';
+import {monthSpan,structuralStatus,topologyExplanation,trendExplanation} from './result-story.mjs';
 import {compareH1,comparisonShape} from './lab-figures.mjs';
 import {buildOutlook} from './outlook-model.mjs';
 
@@ -35,18 +36,29 @@ export function comparisonEvidence(record,topology,index) {
     independentSlope:null,independentTrendP:null,structuralP:null};
 }
 
+export function matchedMonthlySlope(archive,variable,window) {
+  const rows=archive.filter(row=>row.date>=window.start&&row.date<=window.end);
+  const monthly=monthlySeries(rows,variable,true).filter(row=>Number.isFinite(row.value));
+  const pairs=monthly.map(row=>[row.year*12+row.month-1,row.value]);
+  const center=i=>pairs.reduce((sum,p)=>sum+p[i],0)/pairs.length;
+  const x=center(0),y=center(1);
+  const sumXX=pairs.reduce((sum,p)=>sum+(p[0]-x)**2,0);
+  const sumXY=pairs.reduce((sum,p)=>sum+(p[0]-x)*(p[1]-y),0);
+  return {n:pairs.length,monthlySlope:sumXX>0?120*sumXY/sumXX:null};
+}
+
 export function mountComparison(root,data,config,lab) {
   const model=analyze(data,{...config,method:'ols'});
   const controller=new AbortController();
   let selected=model.records.find(r=>r.id===lab.region)??model.records[0];
-  let digits=4, width=lab.width??4,stride=lab.step??12,show=true,uncertainty=true,windowIndex=-1;
-  let result=null, seq=0, elapsed=null, error=null;
+  let digits=4, width=lab.width??4,stride=lab.step??12,show=true,uncertainty=true,windowIndex=lab.joint?-1:lab.window??-1;
+  let result=null, seq=0, elapsed=null, error=null, matched=false;
   const variable=model.variable, unit=variable.annualUnit;
-  root.innerHTML='<div class="shell workspace research-method">'+header('Traditional vs Topo-Signal','One climate record, two questions. Trend inference measures direction. Topology measures changes in the geometry of monthly anomalies.')
+  root.innerHTML='<div class="shell workspace research-method comparison-workspace">'+header('Traditional vs Topo-Signal','Trend inference measures direction. Topo-Signal compares the geometry of monthly departures for one variable at a time.')
     +filters(data,{...config,method:'ols'},{hideMethod:true})+'<form class="controls comparison-controls">'
     +(model.records.length>1?select('method-state','Compare region',model.records.map(r=>'<option value="'+r.id+'" '+(r.id===selected.id?'selected':'')+'>'+escape(r.name)+'</option>').join('')):'')
     +select('method-width','Window',choices([2,4,5,8,10],width,' years'))+select('method-stride','Stride',choices([6,12,24],stride,' months'))
-    +select('method-digits','Display precision',choices([2,4,6],digits,' decimals'))
+    +'<label class="research-check"><input type="checkbox" data-method-matched> Matched-window view</label>'+select('method-digits','Display precision',choices([2,4,6],digits,' decimals'))
     +'<label class="research-check"><input type="checkbox" data-method-topology checked> Show topology</label><label class="research-check"><input type="checkbox" data-method-interval checked> Show uncertainty</label></form><p class="source-line" role="status" data-comparison-status></p><div data-comparison-results></div></div>';
   const target=root.querySelector('[data-comparison-results]');
   const status=root.querySelector('[data-comparison-status]');
@@ -57,7 +69,8 @@ export function mountComparison(root,data,config,lab) {
     const t=evidence.traditional,w=evidence.native;
     const footprint=escape(selected.name)+' · '+escape(selected.sourceGeography)+' · '+escape(variable.label)+' · '+config.start+'–'+config.end+' · '+escape(data.version);
     const domain=[config.start,config.end+11/12];
-    const opts={xDomain:domain,formatX:String,tipDigits:6};
+    const windowBand=show&&w?[endX(w.start),endX(w.end)]:null;
+    const opts={xDomain:domain,formatX:String,tipDigits:6,highlightWindow:windowBand};
     const values=selected.monthly.map(r=>({x:r.year+(r.month-1)/12,y:r.value}));
     const annual=config.resolution==='annual';
     const observedUnit=annual?unit:variable.unit;
@@ -65,46 +78,39 @@ export function mountComparison(root,data,config,lab) {
       points:annual?selected.annual.map(r=>({x:r.year,y:r.value})):values,gap:annual?1.01:.09},
       ...(annual?[{label:'OLS fit on annual values',color:amber,dash:true,points:t.fitted.map(r=>({x:r.year,y:r.value,lo:uncertainty?r.lo:null,hi:uncertainty?r.hi:null}))}]:[])],
       {...opts,title:'Shared observations and conventional fit',yLabel:(config.anomaly?'Anomaly':'Value')+' ('+observedUnit+')',tipUnit:observedUnit});
-    const rolling=result?.windows.map(entry=>{
-      const samples=data.series[selected.id].filter(r=>r.date>=entry.start&&r.date<=entry.end);
-      const monthly=monthlySeries(samples,variable.id,config.anomaly);
-      const mapped=monthly.filter(r=>Number.isFinite(r.value)).map(r=>[r.year*12+r.month-1,r.value]);
-      const centered=(list,i)=>list.reduce((s,p)=>s+p[i],0)/list.length;
-      const support=mapped.length;
-      // Same calendar-month window. Seasonal departures are used for this descriptive comparator.
-      const departures=samples.map(r=>[r.year*12+r.month-1,r[variable.anomalyKey]]).filter(r=>Number.isFinite(r[1]));
-      const dx=centered(departures,0),dy=centered(departures,1);
-      const cov=departures.reduce((s,[x,y])=>s+(x-dx)*(y-dy),0);
-      const denom=departures.reduce((s,[x])=>s+(x-dx)**2,0);
-      return {date:entry.end,h1:entry.referenceChange,monthlySlope:denom?120*cov/denom:null,n:support};
-    })??[];
+    const rolling=result?.windows.map(entry=>({date:entry.end,h1:entry.referenceChange,...matchedMonthlySlope(data.series[selected.id],variable.id,entry)}))??[];
+    const matchedValues=rolling[index];
+    const ref=result?.reference;
+    const scopes='<div class="window-scopes" aria-label="Analysis date ranges"><div><strong>Historical trend</strong><span>'+config.start+'–'+config.end+' selection · '+t.n+' complete years</span></div><div><strong>Selected structural window</strong><span>'+monthSpan(show?w:null)+'</span></div><div><strong>Frozen comparison window</strong><span>'+monthSpan(show?ref:null)+'</span></div><div><strong>Anomaly scaling period</strong><span>'+data.baseline.join('–')+' climatology</span></div></div>';
+    const selectedMonths=show&&matched&&w ? monthlySeries(data.series[selected.id].filter(row=>row.date>=w.start&&row.date<=w.end),variable.id,true) : [];
+    const matchedPlot=selectedMonths.length ? plot([{label:'Calendar-month departures',color:green,points:selectedMonths.map(row=>({x:endX(row.date),y:row.value})),gap:.09}],{title:'Monthly departures used by both window measurements',yLabel:'Departure ('+variable.unit+')',tipUnit:variable.unit,detailX:x=>{const year=Math.floor(x);return year+'-'+String(Math.round((x-year)*12)+1).padStart(2,'0');},xDomain:windowBand,formatX:String,zero:true}) : '';
+    const matchedSection=matched ? '<section class="panel figure-panel matched-panel"><h2>Same months, two measurements</h2>'+(show&&w&&matchedValues?'<p><strong>'+monthSpan(w)+'</strong> · '+matchedValues.n+' monthly departures from '+escape(selected.name)+'. Both measurements draw from these same calendar months and the same monthly departures.</p><div class="window-scopes"><div><strong>Monthly linear slope</strong><span>'+fmt(matchedValues.monthlySlope,digits)+' '+escape(variable.unit)+'/decade</span></div><div><strong>Loop diagram distance</strong><span>'+fmt(w.h1Distance,digits)+' in standardized coordinates</span></div></div><p>Monthly slope measures direction within the highlighted window. Topology uses lagged, standardized coordinates from those months and compares them with '+monthSpan(ref)+'. These quantities have different units. The monthly fit is descriptive because the short, overlapping windows and serial dependence require separate calibration for inference.</p>'+matchedPlot:'<p>Turn on topology and select a complete structural window to view the matched measurements.</p>')+'</section>':'';
     const interval=t.ci?t.ci.map(v=>fmt(v,digits)).join(' to '):'Unavailable';
-    const mask=result?'<label>Inspect calculated window <select name="method-window">'+result.windows.map((entry,i)=>
+    const mask=result?.windows.length?'<label class="window-picker">Inspect calculated window <select name="method-window">'+result.windows.map((entry,i)=>
       '<option value="'+i+'" '+(i===index?'selected':'')+'>'+entry.start.slice(0,7)+' to '+entry.end.slice(0,7)+'</option>').join('')+'</select></label>':'';
-    const matrix='<section class="panel figure-panel"><h2>Historical trend · conventional inference</h2><p class="rate">'+fmt(t.olsRate,digits)+' <small>'+escape(unit)+'/decade</small></p><p>OLS on '+t.n+' complete annual observations · Theil–Sen '+fmt(t.senRate,digits)+' '+escape(unit)+'/decade</p>'
+    const matrix='<section class="panel figure-panel"><h2>Did the annual values trend?</h2><p class="rate">'+fmt(t.olsRate,digits)+' <small>'+escape(unit)+'/decade</small></p><p>OLS on '+t.n+' complete annual observations · Theil–Sen '+fmt(t.senRate,digits)+' '+escape(unit)+'/decade</p>'
       +(uncertainty?'<p>95% OLS slope interval · '+interval+'</p>':'')
-      +'<p>Raw OLS p-value <strong>'+pFormat(t.p,digits)+'</strong> · H₀: annual linear slope is zero.</p><p>Newey–West uncertainty accounts for short-range lag dependence. Mann–Kendall p '+pFormat(t.mk?.p,digits)+' describes monotonic rank ordering under an independence assumption. It can differ from the HAC test of a linear slope because the statistic and dependence assumptions differ.</p></section>'
-      +'<section class="panel figure-panel"><h2>Topo-Signal structural analysis</h2>'+(show?'<p class="rate">'+fmt(w?.h1Distance,digits)+' <small>H1 diagram distance</small></p><p>'+(w?escape(w.start.slice(0,7)+' to '+w.end.slice(0,7))+' · '+w.anchors+' delay vectors':escape(error??result?.reason??'Computing geometry…'))+'</p>'
-      +'<p>Structural p-value · exploratory, no valid p-value for this selection. A stable-process null would require dependence-aware, whole-path calibration.</p><p>Topology-assisted slope and trend p-value · <strong>Not independently computed</strong>.</p>':'<p>Topology display is off. The conventional trend uses the same inputs and retains the same values.</p>')+'</section>';
+      +'<p>Raw OLS p-value <strong>'+pFormat(t.p,digits)+'</strong> · Statistical H<sub>0</sub> assumes the annual linear slope is zero.</p><p>Newey–West uncertainty accounts for short-range lag dependence. Mann–Kendall p '+pFormat(t.mk?.p,digits)+' describes monotonic rank ordering under an independence assumption. It can differ from the HAC test of a linear slope because the statistic and dependence assumptions differ.</p>'+trendExplanation(t,variable,config)+'</section>'
+      +'<section class="panel figure-panel"><h2>Did the shape of monthly variability differ?</h2>'+(show?'<p class="rate">'+fmt(w?.h1Distance,digits)+' <small>H<sub>1</sub> bottleneck distance</small></p><p>'+(w?escape(w.start.slice(0,7)+' to '+w.end.slice(0,7))+' · '+w.anchors+' delay vectors':escape(error??result?.reason??'Computing geometry…'))+'</p>'
+      +(Number.isFinite(w?.h1Distance)?'<p class="story-evidence">'+structuralStatus+'</p>':'')+'<p>Topology-assisted slope and trend p-value · <strong>Not independently computed</strong>.</p>'+topologyExplanation({result,window:w,reference:ref,distance:w?.h1Distance,channel:variable.label,digits}):'<p>Topology display is off. The conventional trend uses the same inputs and retains the same values.</p>')+'</section>';
     const trace={dataset:data.version,source:data.provenance.source,inputSha256:data.provenance.readyCsvSha256,selection:{...config,method:'ols',region:selected.id},footprint:selected.sourceGeography,months:selected.monthly.length,
       missingMonths:selected.monthly.filter(r=>!Number.isFinite(r.value)).length,imputed:0,baseline:data.baseline,elapsedMilliseconds:elapsed,
       conventionalMethod:'Annual OLS / Newey–West HAC, with Sen and descriptive MK',traditional:evidence.traditional,
       topology:{algorithm:'Euclidean Vietoris–Rips GF(2), finite H1 bottleneck distance',delay:lab.delay,widthMonths:width*12,stride,direction:'trailing',
         reference:result?.reference&&{start:result.reference.start,end:result.reference.end,features:result.reference.features},scales:result?.scales,
-        selected:evidence.native,structuralP:null,assistedSlope:null,assistedTrendP:null,rolling}};
-    const rollingView=show&&result?paper('Rolling window evidence',mask+plot([{label:'H1 distance to reference',color:purple,dots:true,gap:stride/12+.01,points:rolling.map(r=>({x:endX(r.date),y:r.h1}))}],{...opts,title:'H1 distance to reference',yLabel:'Standardized distance',zero:true})+
+        selected:evidence.native,structuralP:null,assistedSlope:null,assistedTrendP:null,rolling},matchedWindow:w&&matchedValues?{start:w.start,end:w.end,...matchedValues,units:variable.unit+'/decade',significance:null}:null};
+    const rollingView=show&&result?.windows.length?paper('Rolling window evidence',plot([{label:'H1 distance to reference',color:purple,dots:true,gap:stride/12+.01,points:rolling.map(r=>({x:endX(r.date),y:r.h1}))}],{...opts,title:'H1 distance to reference',yLabel:'Standardized distance',zero:true})+
       plot([{label:'Matched monthly anomaly OLS slopes',color:amber,dots:true,gap:stride/12+.01,points:rolling.map(r=>({x:endX(r.date),y:r.monthlySlope}))}],{...opts,title:'Descriptive anomaly slope on matched rolling windows',yLabel:variable.unit+'/decade'}),
       'The charts share dates but measure different quantities. Values are plotted at window end. Each month in a complete window contributes to its anomaly slope; persistence uses up to 30 trailing three-coordinate delay vectors. The first eligible score follows a complete window. Skipped windows: '+result.skipped+'. Overlapping windows reuse observations. Neither rolling series supplies a significance test.'):'';
     let geometry='';
-    if(show&&w&&result.reference){
-      const ref=result.reference;
+    if(show&&w&&ref){
       const bound=Math.max(1,...ref.points.concat(w.points).flat().map(Math.abs));
       const axes=['z(t)','z(t − '+lab.delay+' months)'];
       geometry=paper('Reference and selected geometry','<div class="split"><figure>'+comparisonShape(ref,bound,axes)+'<figcaption>Reference · '+ref.start.slice(0,7)+' to '+ref.end.slice(0,7)+'</figcaption></figure><figure>'+comparisonShape(w,bound,axes)+'<figcaption>Selected · '+w.start.slice(0,7)+' to '+w.end.slice(0,7)+'</figcaption></figure></div>'+compareH1(ref,w)+'<p><a href="#topology" data-method-inspect>Inspect this window’s linked 3D points, barcode and Rips filtration ↗</a></p>','Both XY projections share a scale. H1 distances use all three coordinates. The geometry contributes a structural descriptor, with no change to the measured trend.');
     }
-    target.innerHTML='<p class="source-line">'+footprint+' · observed archive · no imputation</p>'+'<p><a class="button primary" href="#proof">See if topology actually helps ↗</a></p>'+matrix+paper('Shared climate record',climate,
-      'Both methods draw from these statewide observations. Trend inference uses annual averages for temperature and annual totals for precipitation. Topology uses monthly departures from the fixed calendar-month climatology. The OLS band is for the fitted mean.')+rollingView+geometry
-      +paper('Why Topo-Signal?', '<p>Recorded months → documented quality checks → fixed seasonal anomalies → trailing delay coordinates → H0/H1 intervals → H1 distance. A withheld-value experiment compares analog ranking with and without that persistent feature.</p><a href="#proof">See measured reconstruction differences ↗</a> · <a href="#benchmark">See detector results and timings ↗</a>', 'Topology adds a separate structural view. There is no slope or p-value subtraction between different hypotheses.')+rawPanel(trace);
+    target.innerHTML='<p class="source-line">'+footprint+' · observed archive · no imputation</p>'+scopes+(show?mask:'')+matchedSection+'<div class="method-results">'+matrix+'</div>'+paper('Shared climate record',climate,
+      'Both methods draw from these statewide observations. Trend inference uses annual averages for temperature and annual totals for precipitation. Topology uses monthly departures from the fixed calendar-month climatology. Purple shading marks the selected structural window. The OLS band is for the fitted mean.')+rollingView+geometry
+      +'<p><a class="button primary" href="#proof">See the reconstruction experiment ↗</a></p>'+paper('Why Topo-Signal?', '<p>Recorded months → documented quality checks → fixed seasonal anomalies → trailing delay coordinates → H0/H1 intervals → H1 distance. A withheld-value experiment compares analog ranking with and without that persistent feature.</p><a href="#proof">See measured reconstruction differences ↗</a> · <a href="#benchmark">See detector results and timings ↗</a>', 'Topology adds a separate structural view. There is no slope or p-value subtraction between different hypotheses.')+rawPanel(trace);
     target.querySelector('[data-method-inspect]')?.addEventListener('click',()=>{
       lab.joint=false;
       lab.region=selected.id;
@@ -125,7 +131,7 @@ export function mountComparison(root,data,config,lab) {
         {baseline:data.baseline,startYear:config.start,endYear:config.end,windowSize:width*12,step:stride,delay:lab.delay,lagCount:3,direction:'past'});
       if(id!==seq||controller.signal.aborted)return;
       result=value;elapsed=performance.now()-started;
-      lab.window=windowIndex<0?Math.max(0,value.windows.length-1):windowIndex;
+      if(windowIndex>=value.windows.length)windowIndex=-1;
     } catch(reason) {
       if(id!==seq||controller.signal.aborted)return;
       error=reason.message;
@@ -140,8 +146,9 @@ export function mountComparison(root,data,config,lab) {
       case 'method-width':width=Number(input.value);lab.width=width;break;
       case 'method-stride':stride=Number(input.value);lab.step=stride;break;
       case 'method-digits':digits=Number(input.value);paint();return;
-      case 'method-window':windowIndex=Number(input.value);lab.window=windowIndex;paint();return;
+      case 'method-window':windowIndex=Number(input.value);lab.window=windowIndex;paint();target.querySelector('[name=method-window]')?.focus({preventScroll:true});return;
       default:
+        if(input.matches('[data-method-matched]')){matched=input.checked;paint();return;}
         if(input.matches('[data-method-interval]')){uncertainty=input.checked;paint();return;}
         if(input.matches('[data-method-topology]')){show=input.checked;if(result||!show)paint();else calculate();return;}
         return;

@@ -30,6 +30,8 @@ Open the URL printed in the terminal. The launcher tries `http://127.0.0.1:4173/
 4. Choose **Early detection & benchmark** for the historical replay, simulated controls and algorithm costs. Select **Save investigation** in the Lab to preserve its configuration. Public sessions are recorded as explored.
 5. Use **Export CSV**, **Download SVG**, or **Print report** in Public Explorer. Open **Explore NASA mission context** to see a separate sourced satellite record for the Nile Delta.
 
+The **Walkthrough** button revisits the guide from the analysis modes. Open the trend and topology explanations for the current values, methods, and limitations. On **Compare methods**, enable **Matched-window view** to inspect both measurements on the same dated monthly departures. See the [storytelling and interpretation audit](docs/STORYTELLING_AUDIT.md).
+
 ## Build, verify and deploy
 
 ```sh

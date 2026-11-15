@@ -1,0 +1,54 @@
+.result-story,.learning-group {margin-block:1.2rem;padding:clamp(.85rem,2.2vw,1.5rem)}
+.comparison-workspace .page-head h1 {font-size:clamp(2.1rem,5.6vw,4.25rem)}
+.result-story h2,.learning-group h2 {margin-bottom:.75rem}
+.story-cards,.learning-grid,.method-results,.window-scopes {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,21rem),1fr));
+  gap:1rem;
+}
+.story-card {min-width:0;padding:1rem;border:1px solid #365059;border-radius:8px;background:#111f27}
+.story-card h3 {margin:0 0 .75rem;font-size:1.15rem}
+.story-card h4 {font-size:.92rem;color:#a9ebca;margin:0 0 .25rem}
+.story-card p {margin:0 0 .8rem}
+.story-source {margin:.85rem 0 0;color:#b5c8ce;font-size:.88rem}
+.story-evidence {font-weight:650;color:#dacafa}
+.result-explanation {
+  min-width:0;
+  margin:.65rem 0;
+  padding:.72rem .85rem;
+  border:1px solid #3a505c;
+  border-radius:6px;
+  background:#14242e;
+}
+.result-explanation summary {color:#e4f0f1;cursor:pointer;font-weight:650}
+.result-explanation[open]>summary {margin-bottom:.7rem}
+.result-explanation p,.calculation p {margin:.55rem 0;overflow-wrap:anywhere}
+.result-explanation .calculation {
+  margin-top:.7rem;
+  padding:.6rem 0 0;
+  border-top:1px solid #3a505c;
+}
+.story-illustration,.learning-demo figure {margin:.75rem 0 0}
+.story-illustration svg,.learning-demo svg {width:100%;display:block;color:#aebdc2}
+.story-illustration text,.learning-demo text {fill:#e4f0f1;font:14px system-ui,sans-serif}
+.story-illustration figcaption,.learning-demo figcaption {font-size:.88rem;color:#bbcbd1}
+.learning-demo label {display:block;margin:.5rem 0}
+.learning-demo input[type="range"] {display:block;width:100%;min-height:32px;accent-color:#a9ebca}
+.learning-demo select {display:block;margin-top:.25rem;max-width:100%}
+.window-scopes {
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));
+  margin:.75rem 0 1rem;
+}
+.window-scopes>div {padding:.7rem .85rem;border:1px solid #3a505c;border-radius:6px;background:#152631}
+.window-scopes strong,.window-scopes span {display:block}
+.window-scopes span {color:#d2e0e6;font-size:.91rem;margin-top:.2rem}
+.method-results>.figure-panel {min-width:0;margin-block:1rem}
+.window-picker {display:block;margin-bottom:1rem}
+.window-picker select {display:block;max-width:100%}
+.study-bar button {
+  padding:.55rem .72rem;color:#dcecef;font:inherit;font-size:.875rem;
+  border:1px solid #344a52;border-radius:.45rem;background:#14252b;cursor:pointer;
+}
+.guide-spotlight {outline:2px solid #a9ebca;outline-offset:4px;scroll-margin-block:1rem}
+.guide-actions {flex-wrap:wrap}
+@media print {.learning-group,.study-bar button,.guide {display:none}}

@@ -14,6 +14,15 @@ try {
   assert.match(await rate.innerText(),/0\.3197/);
   const p=await page.getByText(/Raw OLS p-value/).innerText();
   assert.match(p,/e-9/);
+  await page.locator('[data-method-matched]').check();
+  const aligned=page.locator('.matched-panel');
+  assert.match(await aligned.innerText(),/2022-01 to 2025-12 · 48 monthly departures/);
+  await page.getByRole('img',{name:'Monthly departures used by both window measurements'}).waitFor();
+  assert.equal(await page.locator('[data-window-band]').count(),3);
+  await page.getByText('What does this diagram distance mean?',{exact:true}).click();
+  assert.match(await page.locator('.method-results .result-explanation[open]').innerText(),/1981-01 to 1984-12/);
+  await page.getByText('View the two diagrams side by side').click();
+  assert.equal(await page.locator('.observed-diagram:visible').count(),2);
   assert.match(await page.getByText(/Not independently computed/).innerText(),/Not independently computed/);
   await page.locator('[data-method-topology]').uncheck();
   assert.match(await rate.innerText(),/0\.3197/);
@@ -22,6 +31,8 @@ try {
   await page.locator('[name=method-stride]').selectOption('6');
   await page.locator('[name=method-window]').locator('option').nth(1).waitFor({state:'attached'});
   assert.match(await page.locator('[name=method-window] option').nth(1).textContent(),/1985-06/);
+  await page.selectOption('[name=method-window]','1');
+  assert.match(await aligned.innerText(),/1981-07 to 1985-06 · 48 monthly departures/);
   await page.locator('[name=method-digits]').selectOption('6');
   assert.match(await rate.innerText(),/0\.319714/);
   if(process.env.QA_SCREENSHOTS)await page.screenshot({path:process.env.QA_SCREENSHOTS+'/method-comparison-1440.jpg'});

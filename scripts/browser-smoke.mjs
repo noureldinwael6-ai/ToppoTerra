@@ -19,7 +19,7 @@ const snapshot=process.env.QA_SCREENSHOTS;
 const screenshot=async(page,name)=>{
   if(!snapshot)return;
   await mkdir(snapshot,{recursive:true});
-  await page.screenshot({path:resolve(snapshot,name+'.jpg'),type:'jpeg',quality:83,fullPage:true,animations:'disabled'});
+  await page.screenshot({path:resolve(snapshot,name+'.jpg'),type:'jpeg',quality:83,fullPage:!(/^(analysis|topology)-/.test(name)),animations:'disabled'});
 };
 try {
   const context=await browser.newContext({reducedMotion:'reduce',viewport:{width:1440,height:900},acceptDownloads:true});
@@ -41,7 +41,9 @@ try {
   assert.equal(await page.locator('.intro-planet img').evaluate(img=>img.complete&&img.naturalWidth>0),true);
   await page.getByRole('button',{name:'Try the guided demo'}).click();
   await heading('Choose a study area.').waitFor();
-  await waitText(page.locator('.guide'),'1 of 4');
+  await waitText(page.locator('.guide'),'1 of 5');
+  await page.getByRole('button',{name:'Show study controls'}).click();
+  assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('aria-label')),'Investigation settings');
   await page.getByRole('button',{name:'Explore freely'}).click();
   await page.getByRole('button',{name:'Select Arizona on map'}).click();
   const mode=page.getByRole('button',{name:/Public Explorer/});
@@ -50,7 +52,21 @@ try {
   await heading('Arizona').waitFor();
   await waitText(answer('Arizona'),'+0.32');
   await waitText(answer('Arizona'),'Significant trend');
-  mark('Earth fallback, guided start, Census map and two modes');
+  await page.getByText(/Structural difference measured/).first().waitFor();
+  const story=page.getByRole('heading',{name:'What changed, and how sure are we?'});
+  await story.waitFor();
+  await page.getByText('Read the trend, interval and p-value',{exact:true}).click();
+  await page.getByRole('img',{name:/Approximate Student t null reference/}).waitFor();
+  await page.getByText('A decade of change',{exact:true}).click();
+  const noise=page.locator('[data-learning=trend] input');
+  await noise.focus();
+  const beforeNoise=await noise.inputValue();
+  await noise.press('ArrowRight');
+  assert.notEqual(await noise.inputValue(),beforeNoise);
+  await page.getByRole('button',{name:'Walkthrough'}).click();
+  await waitText(page.locator('.guide'),'2 of 5');
+  await page.getByRole('button',{name:'Explore freely'}).click();
+  mark('Earth fallback, guided study controls, result narrative, interactive teaching and walkthrough revisit');
 
   await page.getByRole('link',{name:'Study areas',exact:false}).click();
   await page.getByRole('button',{name:'Select California on map'}).click();
@@ -125,6 +141,13 @@ try {
   const clouds=page.locator('.lab-phase [data-phase-point]');
   await clouds.first().waitFor();
   assert.equal(await clouds.count(),30);
+  const filtration=page.locator('[data-learning=filtration]');
+  await filtration.getByText('Watch points connect and loops fill').click();
+  assert.match(await filtration.locator('figcaption').innerText(),/1 loop/);
+  await filtration.locator('input').focus();
+  await filtration.locator('input').press('End');
+  assert.match(await filtration.locator('figcaption').innerText(),/0 loops/);
+  await page.getByText('Watch points connect and loops fill').click();
   assert.ok(workers.some(worker=>/topology[.-]worker\.mjs/.test(worker)));
   const phase=page.locator('.lab-phase');
   const initial=await clouds.first().getAttribute('cx');
@@ -225,7 +248,7 @@ try {
       if(route==='nasa')await heading('Coverage by cell',2).waitFor();
       const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
       assert.equal(overflow,false,route+' at '+width+' px');
-      if(snapshot&&['home','regions','benchmark','nasa'].includes(route)) await screenshot(page,route+'-'+width);
+      if(snapshot&&['home','regions','analysis','topology','benchmark','nasa'].includes(route)) await screenshot(page,route+'-'+width);
     }
   }
   await page.goto(url.href+'#scenario');

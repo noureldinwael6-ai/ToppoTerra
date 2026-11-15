@@ -32,10 +32,10 @@ Create a Pages project with Git integration. Connect the GitHub repository, choo
 
 ## Publish the verified branch
 
-This workspace began without Git metadata or a configured origin. Its verified release history is shipped as `.qa/ToppoTerra-production.bundle`, with an initial baseline commit and the production upgrade. To transfer it to a normal checkout, run from a directory where you can create a new folder.
+This workspace began without Git metadata or a configured origin. Its verified release history is shipped as `.qa/ToppoTerra-storytelling.bundle`, with the initial baseline, production upgrade, and storytelling release. To transfer it to a normal checkout, run from a directory where you can create a new folder.
 
 ```powershell
-git clone --branch production-upgrade 'D:\ToppoTerra Codex\.qa\ToppoTerra-production.bundle' ToppoTerra
+git clone --branch production-upgrade 'D:\ToppoTerra Codex\.qa\ToppoTerra-storytelling.bundle' ToppoTerra
 cd ToppoTerra
 ```
 

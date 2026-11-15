@@ -1,5 +1,6 @@
 import {escape as html,number,plot} from './charts.mjs';
 import {bettiCounts} from './phase-space.mjs';
+import {monthSpan} from './result-story.mjs';
 
 const value = (n, decimals=3) => html(number(n,decimals));
 const finite = Number.isFinite;
@@ -7,6 +8,7 @@ const line = (points, x, y) => points.map((p,i)=>(i?'L':'M')+x(p).toFixed(1)+','
 const featureColor = feature => feature.dimension === 0 ? 'component' : 'loop';
 const orderByDimension = items => items.slice().sort((a,b)=>(a.feature.dimension===1?0:1)-(b.feature.dimension===1?0:1));
 const scaleText = decimals => n => value(n,decimals);
+const calendarX = date => Number(date.slice(0,4))+(Number(date.slice(5,7))-1)/12;
 
 function gridLines(values, y, width, left, right, format = scaleText(2)) {
   return values.map(v=>'<line class="lab-graph-grid" x1="'+left+'" x2="'+(width-right)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text text-anchor="end" x="'+(left-8)+'" y="'+(y(v)+4)+'">'+format(v)+'</text>').join('');
@@ -69,11 +71,11 @@ export function overviewGraph(rows, variable, config, current) {
     const contiguous=prev && row.year*12+row.month-prev.year*12-prev.month===1;
     return (contiguous&&finite(prev[variable.anomalyKey])?'L':'M')+x(row.year+(row.month-1)/12).toFixed(1)+','+y(n).toFixed(1);
   }).join('');
-  const first=+current.start.slice(0,4), last=+current.end.slice(0,4);
-  return '<svg class="lab-graph observed-overview" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="'+html(variable.label)+' anomalies over the study period with selected window highlighted"><rect class="score-brush" x="'+x(first)+'" y="'+top+'" width="'+(x(last+1)-x(first))+'" height="'+(height-top-bottom)+'"/>'+gridLines([-max,0,max],y,width,left,right)+'<text class="axis" x="'+left+'" y="15">'+html(variable.label)+' anomaly ('+html(variable.unit)+')</text><path class="source-line-graph" d="'+path+'"/><text class="axis" x="'+left+'" y="136">'+config.start+'</text><text class="axis" text-anchor="end" x="'+(width-right)+'" y="136">'+config.end+'</text></svg>';
+  const first=calendarX(current.start), end=calendarX(current.end)+1/12;
+  return '<svg class="lab-graph observed-overview" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="'+html(variable.label)+' anomalies over the study period with selected window highlighted"><rect class="score-brush" x="'+x(first)+'" y="'+top+'" width="'+(x(end)-x(first))+'" height="'+(height-top-bottom)+'"/>'+gridLines([-max,0,max],y,width,left,right)+'<text class="axis" x="'+left+'" y="15">'+html(variable.label)+' anomaly ('+html(variable.unit)+')</text><path class="source-line-graph" d="'+path+'"/><text class="axis" x="'+left+'" y="136">'+config.start+'</text><text class="axis" text-anchor="end" x="'+(width-right)+'" y="136">'+config.end+'</text></svg>';
 }
 
-export function windowGraph(windows, currentIndex, referenceMode, config, stride=12) {
+export function windowGraph(windows, currentIndex, referenceMode, config, stride=12, reference=null) {
   const width=720,height=238,left=66,right=28,top=24,bottom=44;
   const metric = referenceMode ? 'referenceChange' : 'change';
   const scores=windows.map(w=>w[metric]).filter(finite);
@@ -93,11 +95,11 @@ export function windowGraph(windows, currentIndex, referenceMode, config, stride
   }).join('');
   const dots=windows.map((w,i)=>{
     if (!finite(w[metric])) return '';
-    const label=w.end.slice(0,7)+' window, '+number(w[metric],3)+' distance';
+    const label=monthSpan(referenceMode?reference:windows[i-1])+' compared with '+monthSpan(w)+' · H₁ bottleneck distance '+number(w[metric],3);
     return '<circle class="score-dot'+(i===currentIndex?' active':'')+'" cx="'+x(endMonths[i]/12)+'" cy="'+y(w[metric])+'" r="'+(i===currentIndex?6:3.5)+'" aria-label="'+html(label)+'" data-topo-window="'+i+'" role="button" tabindex="-1"><title>'+html(label)+'</title></circle>';
   }).join('');
   const active=windows[currentIndex];
-  const brush=active?'<rect class="score-brush" x="'+x(Number(active.start.slice(0,4)))+'" y="'+top+'" width="'+(x(Number(active.end.slice(0,4))+1)-x(Number(active.start.slice(0,4))))+'" height="'+(height-top-bottom)+'"/>':'';
+  const brush=active?'<rect class="score-brush" x="'+x(calendarX(active.start))+'" y="'+top+'" width="'+(x(calendarX(active.end)+1/12)-x(calendarX(active.start)))+'" height="'+(height-top-bottom)+'"/>':'';
   return '<svg class="lab-graph score-graph" viewBox="0 0 '+width+' '+height+'" role="group" aria-label="'+(referenceMode?'Fixed-reference':'Adjacent-window')+' distance timeline · use arrow keys to choose a window" tabindex="0" data-score-graph>'+brush+grid+'<text x="'+left+'" y="15" class="axis">H1 bottleneck distance (standardized units)</text>'+ticks.map(year=>'<text class="axis" text-anchor="middle" x="'+x(year)+'" y="'+(height-bottom+21)+'">'+year+'</text>').join('')+'<text class="axis" text-anchor="end" x="'+(width-right)+'" y="'+(height-5)+'">Score at window end</text><path class="score-line" d="'+segments+'"/>'+dots+'</svg>';
 }
 
@@ -145,7 +147,9 @@ export function compareH1(reference, selected) {
   const y=n=>181-n/hi*122;
   const ticks=[0,hi/2,hi];
   const dots=(data,color,size)=>data.map(f=>'<circle cx="'+x(f.birth)+'" cy="'+y(f.death)+'" r="'+size+'" class="'+color+'"><title>H1 · birth '+number(f.birth,3)+' · death '+number(f.death,3)+'</title></circle>').join('');
-  return '<figure class="reference-diagram"><svg class="lab-graph" viewBox="0 0 380 220" role="img" aria-label="Finite H1 points in the frozen reference and selected window"><text class="axis" x="63" y="22">H1 death distance</text>'+gridLines(ticks,y,380,63,32)+'<path class="diagram-diagonal" d="M'+x(0)+','+y(0)+'L'+x(hi)+','+y(hi)+'"/>'+ticks.map(t=>'<text x="'+x(t)+'" y="199" text-anchor="middle">'+value(t,2)+'</text>').join('')+dots(a,'h1-reference',5)+dots(b,'h1-selected',3.4)+'<text class="axis" x="348" y="217" text-anchor="end">Birth distance</text></svg><figcaption><span><i class="h1-reference"></i> Frozen reference</span><span><i class="h1-selected"></i> Selected window</span></figcaption></figure>';
+  const single=(features,kind,color)=>'<svg class="lab-graph observed-diagram" viewBox="0 0 380 220" role="img" aria-label="'+kind+' loop diagram on a shared birth and death scale"><text class="axis" x="63" y="22">'+kind+' · death distance</text>'+gridLines(ticks,y,380,63,32)+'<path class="diagram-diagonal" d="M'+x(0)+','+y(0)+'L'+x(hi)+','+y(hi)+'"/>'+ticks.map(t=>'<text text-anchor="middle" x="'+x(t)+'" y="199">'+value(t,2)+'</text>').join('')+dots(features,color,5)+'<text class="axis" x="348" y="217" text-anchor="end">Birth distance</text></svg>';
+  const sideBySide='<details class="result-explanation"><summary>View the two diagrams side by side</summary><p>Each dot is a loop from the observed monthly record. Both panels use the same standardized distance scale. The overlaid view also shows the two sets on shared axes.</p><div class="learning-grid">'+single(a,'Frozen reference','h1-reference')+single(b,'Selected window','h1-selected')+'</div></details>';
+  return sideBySide+'<figure class="reference-diagram"><svg class="lab-graph" viewBox="0 0 380 220" role="img" aria-label="Finite H1 points in the frozen reference and selected window"><text class="axis" x="63" y="22">H1 death distance</text>'+gridLines(ticks,y,380,63,32)+'<path class="diagram-diagonal" d="M'+x(0)+','+y(0)+'L'+x(hi)+','+y(hi)+'"/>'+ticks.map(t=>'<text x="'+x(t)+'" y="199" text-anchor="middle">'+value(t,2)+'</text>').join('')+dots(a,'h1-reference',5)+dots(b,'h1-selected',3.4)+'<text class="axis" x="348" y="217" text-anchor="end">Birth distance</text></svg><figcaption><span><i class="h1-reference"></i> Frozen reference</span><span><i class="h1-selected"></i> Selected window</span></figcaption></figure>';
 }
 
 export function comparisonShape(window,bound,labels) {
